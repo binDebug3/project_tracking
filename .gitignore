@@ -216,3 +216,19 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Time tracking CSV files
+*.csv
+
+# .NET desktop app build artifacts
+desktop/HoursPilot.Desktop/bin/
+desktop/HoursPilot.Desktop/obj/
+desktop/HoursPilot.Desktop/.vs/
+desktop/HoursPilot.Desktop/*.user
+desktop/HoursPilot.Desktop/*.suo
+desktop/HoursPilot.Desktop/*.userosscache
+desktop/HoursPilot.Desktop/*.sln.docstates
+
+# Windows generated files
+Thumbs.db
+Desktop.ini

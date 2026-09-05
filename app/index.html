@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hours Pilot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+    <div id="app" class="app" data-theme="dark">
+        <aside class="sidebar">
+            <h1>Hours Pilot</h1>
+            <nav class="nav" aria-label="Main navigation">
+                <button class="nav-btn active" data-page="tracking" tabindex="-1">Time Tracking</button>
+                <button class="nav-btn" data-page="dashboard" tabindex="-1">Dashboard</button>
+                <button class="nav-btn" data-page="projects" tabindex="-1">Project Tracker</button>
+                <button class="nav-btn" data-page="notes" tabindex="-1">Notes</button>
+                <button class="nav-btn" data-page="settings" tabindex="-1">Settings</button>
+            </nav>
+            <button id="open-shortcuts" class="ghost" tabindex="-1">Shortcuts ?</button>
+        </aside>
+
+        <main class="content">
+            <header class="status-bar">
+                <div>
+                    <strong>Today:</strong>
+                    <span id="active-status">0h 00m worked</span>
+                </div>
+                <div id="clock" class="mono"></div>
+            </header>
+
+            <section class="page active" id="page-tracking" aria-labelledby="tracking-title">
+                <h2 id="tracking-title">Time Tracking</h2>
+
+                <div class="card tracking-row">
+                    <label>Contract
+                        <select id="contract-select"></select>
+                    </label>
+                    <label>Project
+                        <select id="project-select"></select>
+                    </label>
+                    <label>Task Note
+                        <input id="previous-note" maxlength="120"
+                            placeholder="Small note about what you just worked on" />
+                    </label>
+                </div>
+
+                <div class="card manual-row">
+                    <label>Start At
+                        <input id="manual-start-time" type="datetime-local" />
+                    </label>
+                    <label>Contract
+                        <select id="manual-contract-select"></select>
+                    </label>
+                    <label>Project
+                        <select id="manual-project-select"></select>
+                    </label>
+                    <label>Task Note
+                        <input id="manual-previous-note" maxlength="120" placeholder="Note about the current task" />
+                    </label>
+                </div>
+
+                <div class="card">
+                    <div class="section-title-row">
+                        <h3>Today Entries</h3>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Start</th>
+                                    <th>End</th>
+                                    <th>Contract</th>
+                                    <th>Project</th>
+                                    <th>Duration (rounded)</th>
+                                    <th>Task</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="today-entries"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section class="page" id="page-dashboard" aria-labelledby="dashboard-title">
+                <h2 id="dashboard-title">Dashboard</h2>
+                <div class="card grid-5">
+                    <div class="dashboard-range-controls">
+                        <button id="range-prev" class="ghost range-nav" aria-label="Previous range">&larr;</button>
+                        <label>Range
+                            <select id="range-select">
+                                <option value="day">Day</option>
+                                <option value="week">Week</option>
+                                <option value="month">Month</option>
+                                <option value="year">Year</option>
+                            </select>
+                        </label>
+                        <label>Start
+                            <input id="range-start" type="date" />
+                        </label>
+                        <label>End
+                            <input id="range-end" type="date" />
+                        </label>
+                        <button id="range-next" class="ghost range-nav" aria-label="Next range">&rarr;</button>
+                    </div>
+                </div>
+                <div class="dashboard-grid" id="dashboard-grid">
+                    <div class="card" id="dashboard-chart-card">
+                        <h3 id="dashboard-chart-title">Time by Contract</h3>
+                        <div id="contract-chart" class="bars"></div>
+                    </div>
+                    <div class="card">
+                        <h3>Totals</h3>
+                        <ul class="stats" id="dashboard-stats"></ul>
+                    </div>
+                </div>
+            </section>
+
+            <section class="page" id="page-projects" aria-labelledby="projects-title">
+                <h2 id="projects-title">Project Tracker</h2>
+                <div class="card project-row">
+                    <label>Journal Day
+                        <input id="journal-date" type="date" />
+                    </label>
+                    <label>Contract
+                        <select id="journal-contract-select"></select>
+                    </label>
+                    <label>Project
+                        <select id="journal-project-select"></select>
+                    </label>
+                </div>
+                <div class="journal-grid">
+                    <label>What I Did / Tried
+                        <textarea id="journal-did" rows="8"></textarea>
+                    </label>
+                    <label>What I Learned
+                        <textarea id="journal-learned" rows="8"></textarea>
+                    </label>
+                    <label>Next Step / Blocker
+                        <textarea id="journal-next" rows="8"></textarea>
+                    </label>
+                </div>
+            </section>
+
+            <section class="page" id="page-settings" aria-labelledby="settings-title">
+                <h2 id="settings-title">Settings</h2>
+                <div class="card grid-4">
+                    <label>Theme
+                        <select id="theme-select">
+                            <option value="dark">Dark</option>
+                            <option value="light">Light</option>
+                        </select>
+                    </label>
+                    <label>Work Week Ends At
+                        <input id="week-ends" type="time" />
+                    </label>
+                    <label>Hours Report Day
+                        <select id="report-day">
+                            <option>Monday</option>
+                            <option>Tuesday</option>
+                            <option>Wednesday</option>
+                            <option>Thursday</option>
+                            <option>Friday</option>
+                            <option>Saturday</option>
+                            <option>Sunday</option>
+                        </select>
+                    </label>
+                    <label>Hourly Wage
+                        <input id="hourly-wage" type="number" min="0" step="0.01" />
+                    </label>
+                    <label>Estimated Tax Rate %
+                        <input id="tax-rate" type="number" min="0" max="100" step="0.1" />
+                    </label>
+                    <button id="save-settings" class="primary">Save Settings</button>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <h3>Contracts</h3>
+                        <div class="inline-form">
+                            <input id="new-contract" placeholder="Add contract" />
+                        </div>
+                        <ul id="contract-list" class="list"></ul>
+                    </div>
+                    <div class="card">
+                        <h3>Projects By Contract</h3>
+                        <div class="inline-form">
+                            <select id="project-contract"></select>
+                            <input id="new-project" placeholder="Add project" />
+                        </div>
+                        <ul id="project-list" class="list"></ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>CSV Data</h3>
+                    <div class="inline-form csv-form">
+                        <button id="connect-csv" class="ghost">Connect CSV File</button>
+                        <p id="csv-file" class="muted"></p>
+                    </div>
+                    <p id="csv-status" class="muted"></p>
+                </div>
+            </section>
+
+            <section class="page" id="page-notes" aria-labelledby="notes-title">
+                <h2 id="notes-title">Notes</h2>
+                <div class="card notes-filter-row">
+                    <label>Contract
+                        <select id="notes-contract-select"></select>
+                    </label>
+                    <label>Project (optional)
+                        <select id="notes-project-select"></select>
+                    </label>
+                </div>
+                <div class="card">
+                    <div class="section-title-row">
+                        <h3>Notes</h3>
+                    </div>
+                    <ul id="notes-results" class="notes-list"></ul>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <dialog id="edit-dialog">
+        <form method="dialog" class="dialog-form" id="edit-form">
+            <h3>Edit Entry</h3>
+            <label>Start <input id="edit-start" type="datetime-local" required /></label>
+            <label>End <input id="edit-end" type="datetime-local" /></label>
+            <label>Contract <select id="edit-contract"></select></label>
+            <label>Project <select id="edit-project"></select></label>
+            <label>Task <input id="edit-note" maxlength="120" /></label>
+            <menu>
+                <button value="cancel" class="ghost" type="button" id="cancel-edit">Cancel</button>
+                <button value="default" class="primary" id="confirm-edit">Save</button>
+            </menu>
+        </form>
+    </dialog>
+
+    <dialog id="reminder-dialog">
+        <div class="dialog-form">
+            <h3>Yesterday's Project Note Is Missing</h3>
+            <p>You tracked time yesterday but did not save a project tracker entry.</p>
+            <menu>
+                <button id="reminder-open" class="primary">Open Journal</button>
+                <button id="reminder-snooze" class="ghost">Snooze</button>
+                <button id="reminder-dismiss" class="ghost">Not Needed</button>
+            </menu>
+        </div>
+    </dialog>
+
+    <dialog id="palette-dialog">
+        <div class="dialog-form">
+            <h3>Command Palette</h3>
+            <input id="palette-search" placeholder="Type a command" />
+            <ul id="palette-list" class="list"></ul>
+        </div>
+    </dialog>
+
+    <dialog id="shortcuts-dialog">
+        <div class="dialog-form">
+            <h3>Shortcuts</h3>
+            <ul class="list">
+                <li>Ctrl+K : Open command palette</li>
+                <li>G then T/D/P/S : Go to page</li>
+                <li>Ctrl+N : Start next task</li>
+                <li>Ctrl+S : Save project journal</li>
+                <li>Ctrl+Z : Undo last edit</li>
+                <li>? : Open this shortcuts panel</li>
+            </ul>
+            <button id="close-shortcuts" class="primary">Close</button>
+        </div>
+    </dialog>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

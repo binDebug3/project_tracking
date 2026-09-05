@@ -1,0 +1,611 @@
+:root {
+    --bg: #0f172a;
+    --bg2: #1e293b;
+    --panel: #111827;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #22c55e;
+    --danger: #ef4444;
+    --line: #334155;
+}
+
+:root[data-theme="light"] {
+    --bg: #f7f7ef;
+    --bg2: #ece8da;
+    --panel: #fffdfa;
+    --text: #171717;
+    --muted: #57534e;
+    --accent: #0f766e;
+    --danger: #b91c1c;
+    --line: #cbd5e1;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Space Grotesk", sans-serif;
+    background:
+        radial-gradient(circle at 15% 10%, rgba(34, 197, 94, 0.15), transparent 30%),
+        radial-gradient(circle at 85% 85%, rgba(20, 184, 166, 0.15), transparent 35%),
+        linear-gradient(140deg, var(--bg), var(--bg2));
+    color: var(--text);
+}
+
+h1,
+h2,
+h3 {
+    margin: 0;
+    letter-spacing: 0.02em;
+}
+
+h1 {
+    font-size: 1.6rem;
+}
+
+h2 {
+    margin-bottom: 0.8rem;
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.mono {
+    font-family: "IBM Plex Mono", monospace;
+}
+
+.app {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    min-height: 100vh;
+}
+
+.sidebar {
+    border-right: 1px solid var(--line);
+    padding: 1.2rem;
+    background: color-mix(in srgb, var(--panel), transparent 18%);
+    backdrop-filter: blur(8px);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.nav {
+    display: grid;
+    gap: 0.6rem;
+}
+
+.nav-btn {
+    text-align: left;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--text);
+    padding: 0.58rem 0.62rem;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+}
+
+.nav-btn.active,
+.nav-btn:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent), transparent 65%);
+}
+
+.content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+    padding: 0.9rem 1.2rem;
+    background: color-mix(in srgb, var(--panel), transparent 12%);
+}
+
+.page {
+    display: none;
+    padding: 1.2rem;
+    gap: 1rem;
+}
+
+.page.active {
+    display: grid;
+}
+
+.card {
+    background: color-mix(in srgb, var(--panel), transparent 10%);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 0.9rem;
+}
+
+.grid-4 {
+    display: grid;
+    gap: 0.7rem;
+    grid-template-columns: repeat(4, minmax(140px, 1fr));
+    align-items: end;
+}
+
+.tracking-row {
+    display: grid;
+    gap: 0.55rem;
+    grid-template-columns: minmax(92px, 0.75fr) minmax(92px, 0.75fr) minmax(220px, 2.2fr);
+    align-items: end;
+}
+
+.grid-5 {
+    display: grid;
+    gap: 0.7rem;
+    grid-template-columns: repeat(5, minmax(120px, 1fr));
+    align-items: end;
+}
+
+.dashboard-range-controls {
+    display: grid;
+    gap: 0.7rem;
+    grid-template-columns: auto minmax(120px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr) auto;
+    align-items: end;
+    width: 100%;
+}
+
+.range-nav {
+    min-width: 44px;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.manual-row {
+    display: grid;
+    gap: 0.55rem;
+    grid-template-columns: minmax(170px, 1.2fr) minmax(88px, 0.65fr) minmax(88px, 0.65fr) minmax(190px, 1.8fr);
+    align-items: end;
+}
+
+.project-row {
+    display: grid;
+    gap: 0.55rem;
+    grid-template-columns: minmax(170px, 1fr) minmax(120px, 1fr) minmax(120px, 1fr);
+    align-items: end;
+}
+
+.notes-filter-row {
+    display: grid;
+    gap: 0.55rem;
+    grid-template-columns: minmax(180px, 1fr) minmax(220px, 1fr);
+}
+
+.wide {
+    grid-column: span 2;
+}
+
+label {
+    display: grid;
+    gap: 0.3rem;
+    font-size: 0.86rem;
+}
+
+input,
+select,
+textarea,
+button {
+    font: inherit;
+}
+
+input,
+select,
+textarea {
+    border-radius: 9px;
+    border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--panel), transparent 22%);
+    color: var(--text);
+    padding: 0.55rem;
+}
+
+button {
+    border-radius: 9px;
+    border: 1px solid var(--line);
+    padding: 0.55rem 0.75rem;
+    color: var(--text);
+    background: transparent;
+    cursor: pointer;
+}
+
+button.primary {
+    background: var(--accent);
+    color: #0a0a0a;
+    border-color: transparent;
+    font-weight: 700;
+}
+
+button.compact-action {
+    width: fit-content;
+    justify-self: start;
+    white-space: nowrap;
+    padding: 0.45rem 0.62rem;
+    font-size: 0.84rem;
+}
+
+button.inline-start {
+    align-self: end;
+}
+
+button.ghost:hover,
+button.primary:hover {
+    filter: brightness(1.06);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent), transparent 70%);
+}
+
+.section-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.table-wrap {
+    overflow: auto;
+    margin-top: 0.6rem;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.84rem;
+}
+
+th,
+td {
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+    padding: 0.28rem 0.42rem;
+    white-space: nowrap;
+}
+
+td button.ghost {
+    padding: 0.2rem 0.42rem;
+    font-size: 0.78rem;
+    border-radius: 7px;
+}
+
+.dashboard-grid {
+    display: grid;
+    gap: 0.9rem;
+    grid-template-columns: 2fr 1fr;
+}
+
+.dashboard-grid.chart-hidden {
+    grid-template-columns: 1fr;
+}
+
+.bars {
+    display: grid;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+}
+
+.bar-row {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.bar {
+    height: 16px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent), white 30%));
+}
+
+.week-bars {
+    margin-top: 0.6rem;
+    display: grid;
+    gap: 0.7rem;
+}
+
+.week-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem 0.9rem;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+}
+
+.legend-swatch {
+    width: 0.72rem;
+    height: 0.72rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--text), transparent 35%);
+}
+
+.week-chart {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5rem;
+    align-items: stretch;
+}
+
+.week-y-axis {
+    display: grid;
+    grid-template-rows: repeat(5, 1fr);
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--muted);
+    padding-top: 0.2rem;
+    padding-bottom: 2.3rem;
+}
+
+.week-y-tick {
+    text-align: right;
+    padding-right: 0.2rem;
+    white-space: nowrap;
+}
+
+.week-plot {
+    border-left: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 0.25rem 0.35rem 0;
+    min-height: 260px;
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.5rem;
+    align-items: end;
+}
+
+.week-day {
+    display: grid;
+    gap: 0.32rem;
+    justify-items: center;
+}
+
+.week-stack {
+    width: min(100%, 52px);
+    min-height: 190px;
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: flex-start;
+    border-radius: 10px 10px 0 0;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--line), transparent 18%);
+    background: linear-gradient(180deg,
+            color-mix(in srgb, var(--panel), transparent 12%),
+            color-mix(in srgb, var(--panel), transparent 3%));
+}
+
+.week-segment {
+    width: 100%;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text), transparent 72%);
+}
+
+.week-day-label {
+    font-size: 0.78rem;
+    color: var(--muted);
+}
+
+.week-day-total {
+    font-size: 0.73rem;
+    color: var(--text);
+}
+
+.stats {
+    list-style: none;
+    padding: 0;
+    margin: 0.6rem 0 0;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.stats li {
+    border: 1px solid color-mix(in srgb, var(--line), transparent 10%);
+    border-radius: 10px;
+    padding: 0.5rem 0.6rem;
+    background: color-mix(in srgb, var(--panel), transparent 18%);
+}
+
+.stats .stat-total {
+    padding: 0.7rem 0.75rem;
+    border-color: color-mix(in srgb, var(--accent), var(--line) 30%);
+    background: linear-gradient(130deg,
+            color-mix(in srgb, var(--accent), transparent 82%),
+            color-mix(in srgb, var(--panel), transparent 10%));
+}
+
+.stat-total-label {
+    display: block;
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 0.24rem;
+}
+
+.stat-total-value {
+    font-size: clamp(1.2rem, 2.6vw, 1.9rem);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.inline-form {
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: 1fr;
+    margin: 0.6rem 0;
+}
+
+.csv-form {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+}
+
+#csv-file {
+    margin: 0;
+}
+
+.button-like {
+    border-radius: 9px;
+    border: 1px solid var(--line);
+    padding: 0.55rem 0.75rem;
+    cursor: pointer;
+    width: fit-content;
+}
+
+.button-like:hover {
+    filter: brightness(1.06);
+}
+
+#import-csv {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.list {
+    margin: 0;
+    padding-left: 1rem;
+    display: grid;
+    gap: 0.4rem;
+}
+
+.notes-list {
+    margin: 0;
+    padding-left: 1.1rem;
+    display: grid;
+    gap: 0.55rem;
+}
+
+.note-meta {
+    display: block;
+    font-size: 0.74rem;
+    color: var(--muted);
+}
+
+.note-section {
+    display: grid;
+    gap: 0.2rem;
+    margin-top: 0.45rem;
+}
+
+.note-section-body {
+    white-space: pre-line;
+}
+
+.journal-grid {
+    display: grid;
+    gap: 0.8rem;
+    grid-template-columns: repeat(3, minmax(200px, 1fr));
+}
+
+textarea {
+    min-height: 180px;
+    resize: vertical;
+}
+
+dialog {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel);
+    color: var(--text);
+    min-width: min(680px, 92vw);
+}
+
+.dialog-form {
+    display: grid;
+    gap: 0.7rem;
+}
+
+menu {
+    display: flex;
+    gap: 0.6rem;
+    justify-content: flex-end;
+    padding: 0;
+    margin: 0;
+}
+
+@media (max-width: 1100px) {
+    .app {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .nav {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+    }
+
+    .grid-4,
+    .grid-5,
+    .tracking-row,
+    .manual-row,
+    .project-row,
+    .notes-filter-row,
+    .journal-grid,
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-range-controls {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+    }
+
+    .range-nav {
+        min-width: 0;
+    }
+
+    .wide {
+        grid-column: auto;
+    }
+
+    .week-plot {
+        min-height: 220px;
+    }
+
+    .week-stack {
+        min-height: 160px;
+        width: min(100%, 42px);
+    }
+}
+
+@media (max-width: 1450px) {
+    .tracking-row {
+        grid-template-columns: minmax(86px, 0.7fr) minmax(86px, 0.7fr) minmax(180px, 1.8fr);
+    }
+
+    .manual-row {
+        grid-template-columns: minmax(155px, 1fr) minmax(82px, 0.65fr) minmax(82px, 0.65fr) minmax(165px, 1.5fr);
+    }
+}
+
+.stats-heading {
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
