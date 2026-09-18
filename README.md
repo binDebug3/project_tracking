@@ -31,7 +31,7 @@ python -m http.server 8080
 Then open `http://localhost:8080/app/`.
 
 ## Run As Desktop App (Windows)
-
+yes
 Desktop host project:
 
 - [desktop/HoursPilot.Desktop/HoursPilot.Desktop.csproj](desktop/HoursPilot.Desktop/HoursPilot.Desktop.csproj)
