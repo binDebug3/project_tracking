@@ -7,12 +7,12 @@ This repository now includes a no-build web MVP in [app/index.html](app/index.ht
 
 - Five pages: Time Tracking, Dashboard, Project Tracker, Settings, Notes
 - Keyboard-first navigation and command palette
-- Start-next-task behavior (stops active timer and starts a new one)
-- Manual start-at-time entry for late task switching
+- Compact boundary entry for date, quarter-hour start time, contract, project, and task
+- Context-aware AM/PM inference with an explicit override
 - Contract/project selection with reserved None contract and project
 - Raw timestamps plus quarter-hour rounded durations
-- Editable and deletable entries with undo support
-- Daily project journal with morning reminder for missed prior-day update
+- Multi-day, sticky-grouped history with spreadsheet-style inline editing and deletion
+- Autosaving daily project journal with quick day navigation and section cycling
 - Dashboard range filters, time-by-contract visualization, and wage/tax earnings estimates
 - Notes browser filtered by contract and optional project
 - CSV-backed time-entry persistence with automatic sync after connecting a file
@@ -61,9 +61,12 @@ After connection, entry changes auto-sync back to that file.
 - `Ctrl+K` open command palette
 - `Ctrl+Tab` cycle through Time Tracking, Dashboard, Project Tracker, Settings, and Notes
 - `Ctrl+Shift+Tab` cycle backward through pages
-- `G` then `T`/`D`/`P`/`S`/`N` go to Time/Dashboard/Projects/Settings/Notes
-- `Ctrl+N` stop current timer and start next task
-- `Ctrl+S` save project journal (on Project Tracker page)
+- `G` then `T`/`D`/`J`/`S`/`N` go to Time/Reports/Journal/Settings/Notes
+- `Ctrl+N` focus a new time entry
+- `Enter` in the task field saves and returns to the selected hour
+- `Ctrl+Enter` moves to the next journal section and cycles after the last
+- `Left`/`Right` changes journal days when focus is outside an editor
+- `Ctrl+Delete` deletes the focused history row
 - `Ctrl+Z` undo last edit
 - `Tab` from outside page content jumps to the first input on the active page
 - `?` open shortcuts panel

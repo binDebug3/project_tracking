@@ -16,15 +16,15 @@
 <body>
     <div id="app" class="app" data-theme="dark">
         <aside class="sidebar">
-            <h1>Hours Pilot</h1>
+            <div class="brand"><span class="brand-mark">HP</span><span>Hours Pilot</span></div>
             <nav class="nav" aria-label="Main navigation">
-                <button class="nav-btn active" data-page="tracking" tabindex="-1">Time Tracking</button>
-                <button class="nav-btn" data-page="dashboard" tabindex="-1">Dashboard</button>
-                <button class="nav-btn" data-page="projects" tabindex="-1">Project Tracker</button>
-                <button class="nav-btn" data-page="notes" tabindex="-1">Notes</button>
-                <button class="nav-btn" data-page="settings" tabindex="-1">Settings</button>
+                <button class="nav-btn active" data-page="tracking"><span class="nav-key">T</span>Time</button>
+                <button class="nav-btn" data-page="dashboard"><span class="nav-key">D</span>Reports</button>
+                <button class="nav-btn" data-page="projects"><span class="nav-key">J</span>Journal</button>
+                <button class="nav-btn" data-page="notes"><span class="nav-key">N</span>Notes</button>
+                <button class="nav-btn" data-page="settings"><span class="nav-key">S</span>Settings</button>
             </nav>
-            <button id="open-shortcuts" class="ghost" tabindex="-1">Shortcuts ?</button>
+            <button id="open-shortcuts" class="sidebar-help ghost"><span class="nav-key">?</span>Shortcuts</button>
         </aside>
 
         <main class="content">
@@ -37,41 +37,32 @@
             </header>
 
             <section class="page active" id="page-tracking" aria-labelledby="tracking-title">
-                <h2 id="tracking-title">Time Tracking</h2>
-
-                <div class="card tracking-row">
-                    <label>Contract
-                        <select id="contract-select"></select>
-                    </label>
-                    <label>Project
-                        <select id="project-select"></select>
-                    </label>
-                    <label>Task Note
-                        <input id="previous-note" maxlength="120"
-                            placeholder="Small note about what you just worked on" />
-                    </label>
+                <div class="page-heading">
+                    <div><h2 id="tracking-title">Time</h2><span class="page-subtitle">Log a work boundary</span></div>
+                    <strong id="today-total" class="summary-total mono">0h 00m today</strong>
                 </div>
 
-                <div class="card manual-row">
-                    <label>Start At
-                        <input id="manual-start-time" type="datetime-local" />
-                    </label>
-                    <label>Contract
-                        <select id="manual-contract-select"></select>
-                    </label>
-                    <label>Project
-                        <select id="manual-project-select"></select>
-                    </label>
-                    <label>Task Note
-                        <input id="manual-previous-note" maxlength="120" placeholder="Note about the current task" />
-                    </label>
-                </div>
+                <form id="quick-entry" class="entry-strip" autocomplete="off">
+                    <label class="entry-date">Date<input id="entry-date" type="date" required /></label>
+                    <fieldset class="entry-time" aria-label="Start time">
+                        <legend>Start</legend>
+                        <input id="entry-hour" class="mono" inputmode="numeric" maxlength="2" aria-label="Start hour" value="9" required />
+                        <span aria-hidden="true">:</span>
+                        <select id="entry-minute" class="mono" aria-label="Start minute">
+                            <option>00</option><option>15</option><option>30</option><option>45</option>
+                        </select>
+                        <select id="entry-period" aria-label="AM or PM"><option>AM</option><option>PM</option></select>
+                    </fieldset>
+                    <label>Contract<input id="entry-contract" list="contract-options" required /></label>
+                    <label>Project<input id="entry-project" list="project-options" required /></label>
+                    <label class="entry-task">Task<input id="entry-task" maxlength="120" placeholder="What are you working on?" /></label>
+                    <datalist id="contract-options"></datalist>
+                    <datalist id="project-options"></datalist>
+                </form>
 
-                <div class="card">
-                    <div class="section-title-row">
-                        <h3>Today Entries</h3>
-                    </div>
-                    <div class="table-wrap">
+                <section class="history-panel" aria-labelledby="history-title">
+                    <div class="history-toolbar"><h3 id="history-title">Recent history</h3><span class="muted">Newest first</span></div>
+                    <div class="table-wrap history-scroll">
                         <table>
                             <thead>
                                 <tr>
@@ -79,15 +70,15 @@
                                     <th>End</th>
                                     <th>Contract</th>
                                     <th>Project</th>
-                                    <th>Duration (rounded)</th>
+                                    <th>Duration</th>
                                     <th>Task</th>
-                                    <th>Actions</th>
+                                    <th><span class="sr-only">Actions</span></th>
                                 </tr>
                             </thead>
-                            <tbody id="today-entries"></tbody>
+                            <tbody id="recent-entries"></tbody>
                         </table>
                     </div>
-                </div>
+                </section>
             </section>
 
             <section class="page" id="page-dashboard" aria-labelledby="dashboard-title">
@@ -125,11 +116,17 @@
             </section>
 
             <section class="page" id="page-projects" aria-labelledby="projects-title">
-                <h2 id="projects-title">Project Tracker</h2>
-                <div class="card project-row">
-                    <label>Journal Day
-                        <input id="journal-date" type="date" />
-                    </label>
+                <div class="journal-heading">
+                    <div><h2 id="projects-title">Project Journal</h2><span class="page-subtitle">Daily working notes</span></div>
+                    <div class="journal-day-nav">
+                        <button id="journal-prev" class="ghost" aria-label="Previous day">&larr;</button>
+                        <label><span class="sr-only">Journal day</span><input id="journal-date" type="date" /></label>
+                        <strong id="journal-date-label"></strong>
+                        <button id="journal-next-day" class="ghost" aria-label="Next day">&rarr;</button>
+                    </div>
+                </div>
+                <div id="journal-days" class="journal-days" aria-label="Recent journal days"></div>
+                <div class="journal-meta">
                     <label>Contract
                         <select id="journal-contract-select"></select>
                     </label>
@@ -137,15 +134,15 @@
                         <select id="journal-project-select"></select>
                     </label>
                 </div>
-                <div class="journal-grid">
-                    <label>What I Did / Tried
-                        <textarea id="journal-did" rows="8"></textarea>
+                <div class="journal-paper">
+                    <label><span>What I did / tried</span>
+                        <textarea id="journal-did" rows="7" placeholder="- Shipped, investigated, changed…"></textarea>
                     </label>
-                    <label>What I Learned
-                        <textarea id="journal-learned" rows="8"></textarea>
+                    <label><span>What I learned</span>
+                        <textarea id="journal-learned" rows="7" placeholder="- Decisions, discoveries, context…"></textarea>
                     </label>
-                    <label>Next Step / Blocker
-                        <textarea id="journal-next" rows="8"></textarea>
+                    <label><span>Next step / blocker</span>
+                        <textarea id="journal-next" rows="7" placeholder="- Pick up here tomorrow…"></textarea>
                     </label>
                 </div>
             </section>
@@ -230,21 +227,6 @@
         </main>
     </div>
 
-    <dialog id="edit-dialog">
-        <form method="dialog" class="dialog-form" id="edit-form">
-            <h3>Edit Entry</h3>
-            <label>Start <input id="edit-start" type="datetime-local" required /></label>
-            <label>End <input id="edit-end" type="datetime-local" /></label>
-            <label>Contract <select id="edit-contract"></select></label>
-            <label>Project <select id="edit-project"></select></label>
-            <label>Task <input id="edit-note" maxlength="120" /></label>
-            <menu>
-                <button value="cancel" class="ghost" type="button" id="cancel-edit">Cancel</button>
-                <button value="default" class="primary" id="confirm-edit">Save</button>
-            </menu>
-        </form>
-    </dialog>
-
     <dialog id="reminder-dialog">
         <div class="dialog-form">
             <h3>Yesterday's Project Note Is Missing</h3>
@@ -270,9 +252,11 @@
             <h3>Shortcuts</h3>
             <ul class="list">
                 <li>Ctrl+K : Open command palette</li>
-                <li>G then T/D/P/S : Go to page</li>
-                <li>Ctrl+N : Start next task</li>
-                <li>Ctrl+S : Save project journal</li>
+                <li>G then T/D/J/N/S : Go to page</li>
+                <li>Enter in task : Save entry</li>
+                <li>Enter or Tab : Move through entry fields</li>
+                <li>Arrow keys : Change journal day</li>
+                <li>Ctrl+Enter : Next journal section</li>
                 <li>Ctrl+Z : Undo last edit</li>
                 <li>? : Open this shortcuts panel</li>
             </ul>
@@ -280,6 +264,7 @@
         </div>
     </dialog>
 
+    <script src="logic.js"></script>
     <script src="app.js"></script>
 </body>
 
