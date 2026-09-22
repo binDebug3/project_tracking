@@ -789,3 +789,7 @@ dialog { border-radius: 3px; }
     .journal-paper label + label { border-left: 0; border-top: 1px solid var(--line); }
     .journal-paper textarea { min-height: 180px; }
 }
+
+.csv-form { grid-template-columns: minmax(220px, 1fr) auto minmax(120px, 1fr); }
+.csv-path-label { min-width: 0; }
+.csv-path-label input { width: 100%; }

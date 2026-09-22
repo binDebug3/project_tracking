@@ -30,9 +30,11 @@ let csvWriteChain = Promise.resolve();
 const isDesktopHost = Boolean(window.chrome?.webview);
 let suppressCsvWrite = false;
 let desktopCsvConnected = false;
+let localCsvServerConnected = false;
 let journalSaveTimer = null;
 let periodWasOverridden = false;
 let loadedJournalDate = null;
+let entryDateDigitCount = 0;
 let dashboardRangeState = {
     mode: "week",
     anchorDate: startOfWeek(new Date())
@@ -114,6 +116,7 @@ const projectContract = document.getElementById("project-contract");
 const newProject = document.getElementById("new-project");
 const projectList = document.getElementById("project-list");
 const connectCsvButton = document.getElementById("connect-csv");
+const csvPath = document.getElementById("csv-path");
 const csvFileLabel = document.getElementById("csv-file");
 const csvStatus = document.getElementById("csv-status");
 
@@ -234,9 +237,11 @@ function bindEvents() {
         event.preventDefault();
         saveQuickEntry();
     });
+    entryDate.addEventListener("focus", () => { entryDateDigitCount = 0; });
+    entryDate.addEventListener("keydown", handleEntryDateKeydown);
     entryHour.addEventListener("input", handleHourInput);
     entryHour.addEventListener("keydown", handleEntryFieldKeydown);
-    entryMinute.addEventListener("keydown", handleEntryFieldKeydown);
+    entryMinute.addEventListener("keydown", handleEntryMinuteKeydown);
     entryContract.addEventListener("input", updateEntryProjectOptions);
     entryContract.addEventListener("change", updateEntryProjectOptions);
     entryContract.addEventListener("keydown", handleEntryFieldKeydown);
@@ -618,13 +623,80 @@ function handleHourInput() {
     }
 }
 
+function handleEntryDateKeydown(event) {
+    if (/^\d$/.test(event.key)) {
+        entryDateDigitCount += 1;
+        if (entryDateDigitCount === 2) {
+            setTimeout(() => {
+                if (document.activeElement === entryDate) entryHour.focus();
+            }, 0);
+        }
+        return;
+    }
+    if (event.key === "Backspace" || event.key === "Delete") entryDateDigitCount = 0;
+}
+
+function handleEntryMinuteKeydown(event) {
+    const minutesByFirstDigit = { 0: "00", 1: "15", 3: "30", 4: "45" };
+    if (minutesByFirstDigit[event.key]) {
+        event.preventDefault();
+        entryMinute.value = minutesByFirstDigit[event.key];
+        focusEntryContract();
+        return;
+    }
+    handleEntryFieldKeydown(event);
+}
+
+function matchingEntryOption(values, typedValue) {
+    const typed = typedValue.trim().toLowerCase();
+    return values.find((value) => value.toLowerCase().startsWith(typed)) || values[0] || "";
+}
+
+function focusEntryContract() {
+    if (!getContract(entryContract.value)) {
+        entryContract.value = matchingEntryOption(state.settings.contracts.map((contract) => contract.name), entryContract.value);
+        updateEntryProjectOptions();
+    }
+    entryContract.focus();
+    entryContract.select();
+}
+
+function acceptEntryContract() {
+    entryContract.value = matchingEntryOption(state.settings.contracts.map((contract) => contract.name), entryContract.value);
+    updateEntryProjectOptions();
+    entryProject.focus();
+    entryProject.select();
+}
+
+function acceptEntryProject() {
+    const projects = getContract(entryContract.value)?.projects || ["None"];
+    entryProject.value = matchingEntryOption(projects, entryProject.value);
+    entryTask.focus();
+}
+
 function handleEntryFieldKeydown(event) {
     if (event.key !== "Enter" && event.key !== "Tab") return;
     if (event.key === "Tab" && event.shiftKey) return;
+
+    if (event.target === entryContract) {
+        event.preventDefault();
+        event.stopPropagation();
+        acceptEntryContract();
+        return;
+    }
+
+    if (event.target === entryProject) {
+        event.preventDefault();
+        event.stopPropagation();
+        acceptEntryProject();
+        return;
+    }
+
     const order = [entryHour, entryMinute, entryContract, entryProject, entryTask];
     const next = order[order.indexOf(event.target) + 1];
     if (!next) return;
     event.preventDefault();
+    event.stopPropagation();
     next.focus();
     next.select?.();
 }
@@ -639,8 +711,10 @@ async function setupCsvBackend() {
         return;
     }
 
+    if (await setupLocalCsvServer()) return;
+
     if (!("showOpenFilePicker" in window)) {
-        csvStatus.textContent = "Automatic CSV sync requires Chromium browser file access. Running local-only mode.";
+        csvStatus.textContent = "Start Hours Pilot local server to use a persistent CSV in Safari.";
         return;
     }
 
@@ -657,14 +731,53 @@ async function setupCsvBackend() {
     csvFileLabel.textContent = "No CSV connected";
 }
 
+async function setupLocalCsvServer() {
+    try {
+        const response = await fetch("/api/csv/status", { cache: "no-store" });
+        if (!response.ok) return false;
+        localCsvServerConnected = true;
+        applyLocalCsvStatus(await response.json());
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function applyLocalCsvStatus(payload) {
+    csvPath.value = payload.path || "";
+    csvFileLabel.textContent = payload.fileName || CSV_FILE_NAME;
+    csvStatus.textContent = payload.exists
+        ? "CSV connected. Auto-sync is active."
+        : "CSV ready. It will be created when you save your first entry.";
+    suppressCsvWrite = true;
+    loadEntriesFromCsvText(payload.csvText || "");
+    suppressCsvWrite = false;
+}
+
 async function connectCsvFile() {
     if (isDesktopHost) {
         window.chrome.webview.postMessage({ type: "csv-pick" });
         return;
     }
 
+    if (localCsvServerConnected) {
+        try {
+            const response = await fetch("/api/csv/configure", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ path: csvPath.value.trim() })
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.error || "CSV configuration failed.");
+            applyLocalCsvStatus(payload);
+        } catch (error) {
+            csvStatus.textContent = error.message || "Could not configure CSV.";
+        }
+        return;
+    }
+
     if (!("showOpenFilePicker" in window)) {
-        csvStatus.textContent = "CSV connect unavailable in this browser.";
+        csvStatus.textContent = "Start Hours Pilot local server to use a persistent CSV in Safari.";
         return;
     }
 
@@ -676,7 +789,6 @@ async function connectCsvFile() {
         csvFileHandle = handles[0];
         await storeCsvHandle(csvFileHandle);
         csvFileLabel.textContent = csvFileHandle.name;
-
         await loadEntriesFromConnectedCsv();
         csvStatus.textContent = "CSV connected. Auto-sync is active.";
     } catch {
@@ -835,6 +947,15 @@ function queueCsvWrite() {
         return;
     }
 
+    if (localCsvServerConnected) {
+        csvWriteChain = csvWriteChain
+            .then(() => writeEntriesToCsv())
+            .catch(() => {
+                csvStatus.textContent = "Auto-save to CSV failed.";
+            });
+        return;
+    }
+
     if (!csvFileHandle) {
         return;
     }
@@ -847,7 +968,7 @@ function queueCsvWrite() {
 }
 
 async function writeEntriesToCsv() {
-    if (!isDesktopHost && !csvFileHandle) {
+    if (!isDesktopHost && !localCsvServerConnected && !csvFileHandle) {
         return;
     }
 
@@ -889,6 +1010,19 @@ async function writeEntriesToCsv() {
 
     if (isDesktopHost) {
         window.chrome.webview.postMessage({ type: "csv-write", csvText: csv, rowCount: rows.length });
+        return;
+    }
+
+    if (localCsvServerConnected) {
+        const response = await fetch("/api/csv/write", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ csvText: csv, rowCount: rows.length })
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "CSV write failed.");
+        csvFileLabel.textContent = payload.fileName || CSV_FILE_NAME;
+        csvStatus.textContent = `Auto-synced  entries.`;
         return;
     }
 
