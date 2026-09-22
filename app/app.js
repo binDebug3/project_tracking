@@ -25,12 +25,16 @@ const defaultState = {
 let state = loadState();
 let goPrefixActive = false;
 const undoStack = [];
-let editingEntryId = null;
 let csvFileHandle = null;
 let csvWriteChain = Promise.resolve();
 const isDesktopHost = Boolean(window.chrome?.webview);
 let suppressCsvWrite = false;
 let desktopCsvConnected = false;
+let localCsvServerConnected = false;
+let journalSaveTimer = null;
+let periodWasOverridden = false;
+let loadedJournalDate = null;
+let entryDateDigitCount = 0;
 let dashboardRangeState = {
     mode: "week",
     anchorDate: startOfWeek(new Date())
@@ -62,15 +66,19 @@ const cyclePages = ["tracking", "dashboard", "projects", "notes", "settings"];
 const navButtons = Array.from(document.querySelectorAll(".nav-btn"));
 const appRoot = document.getElementById("app");
 
-const contractSelect = document.getElementById("contract-select");
-const projectSelect = document.getElementById("project-select");
-const previousNote = document.getElementById("previous-note");
-const manualStartTime = document.getElementById("manual-start-time");
-const manualContractSelect = document.getElementById("manual-contract-select");
-const manualProjectSelect = document.getElementById("manual-project-select");
-const manualPreviousNote = document.getElementById("manual-previous-note");
+const quickEntry = document.getElementById("quick-entry");
+const entryDate = document.getElementById("entry-date");
+const entryHour = document.getElementById("entry-hour");
+const entryMinute = document.getElementById("entry-minute");
+const entryPeriod = document.getElementById("entry-period");
+const entryContract = document.getElementById("entry-contract");
+const entryProject = document.getElementById("entry-project");
+const entryTask = document.getElementById("entry-task");
+const contractOptions = document.getElementById("contract-options");
+const projectOptions = document.getElementById("project-options");
 const activeStatus = document.getElementById("active-status");
-const todayEntries = document.getElementById("today-entries");
+const todayTotal = document.getElementById("today-total");
+const recentEntries = document.getElementById("recent-entries");
 const undoButton = document.getElementById("undo-btn");
 const clock = document.getElementById("clock");
 
@@ -91,6 +99,10 @@ const journalProjectSelect = document.getElementById("journal-project-select");
 const journalDid = document.getElementById("journal-did");
 const journalLearned = document.getElementById("journal-learned");
 const journalNext = document.getElementById("journal-next");
+const journalPrev = document.getElementById("journal-prev");
+const journalNextDay = document.getElementById("journal-next-day");
+const journalDateLabel = document.getElementById("journal-date-label");
+const journalDays = document.getElementById("journal-days");
 
 const themeSelect = document.getElementById("theme-select");
 const weekEnds = document.getElementById("week-ends");
@@ -104,21 +116,13 @@ const projectContract = document.getElementById("project-contract");
 const newProject = document.getElementById("new-project");
 const projectList = document.getElementById("project-list");
 const connectCsvButton = document.getElementById("connect-csv");
+const csvPath = document.getElementById("csv-path");
 const csvFileLabel = document.getElementById("csv-file");
 const csvStatus = document.getElementById("csv-status");
 
 const notesContractSelect = document.getElementById("notes-contract-select");
 const notesProjectSelect = document.getElementById("notes-project-select");
 const notesResults = document.getElementById("notes-results");
-
-const editDialog = document.getElementById("edit-dialog");
-const editStart = document.getElementById("edit-start");
-const editEnd = document.getElementById("edit-end");
-const editContract = document.getElementById("edit-contract");
-const editProject = document.getElementById("edit-project");
-const editNote = document.getElementById("edit-note");
-const confirmEdit = document.getElementById("confirm-edit");
-const cancelEdit = document.getElementById("cancel-edit");
 
 const reminderDialog = document.getElementById("reminder-dialog");
 const reminderOpen = document.getElementById("reminder-open");
@@ -139,7 +143,7 @@ const commands = [
     { key: "go-projects", label: "Go: Project Tracker", run: () => showPage("projects") },
     { key: "go-settings", label: "Go: Settings", run: () => showPage("settings") },
     { key: "go-notes", label: "Go: Notes", run: () => showPage("notes") },
-    { key: "start-task", label: "Start Next Task", run: startNextTask },
+    { key: "new-entry", label: "New time entry", run: focusEntryHour },
     { key: "save-journal", label: "Save Journal", run: saveJournal },
     { key: "undo", label: "Undo Last Edit", run: undoLast }
 ];
@@ -162,6 +166,7 @@ async function init() {
     showPage("tracking");
     render();
     startClock();
+    setEntryDefaults();
 }
 
 function loadState() {
@@ -228,12 +233,34 @@ function bindEvents() {
         btn.addEventListener("click", () => showPage(btn.dataset.page));
     });
 
-    contractSelect.addEventListener("change", () => updateProjectSelect());
-    manualContractSelect.addEventListener("change", () => updateManualProjectSelect());
+    quickEntry.addEventListener("submit", (event) => {
+        event.preventDefault();
+        saveQuickEntry();
+    });
+    entryDate.addEventListener("focus", () => { entryDateDigitCount = 0; });
+    entryDate.addEventListener("keydown", handleEntryDateKeydown);
+    entryHour.addEventListener("input", handleHourInput);
+    entryHour.addEventListener("keydown", handleEntryFieldKeydown);
+    entryMinute.addEventListener("keydown", handleEntryMinuteKeydown);
+    entryContract.addEventListener("input", updateEntryProjectOptions);
+    entryContract.addEventListener("change", updateEntryProjectOptions);
+    entryContract.addEventListener("keydown", handleEntryFieldKeydown);
+    entryProject.addEventListener("keydown", handleEntryFieldKeydown);
+    entryTask.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            saveQuickEntry();
+        }
+    });
     journalContractSelect.addEventListener("change", () => updateJournalProjectSelect());
-    journalDate.addEventListener("change", () => loadJournalForDate(journalDate.value));
-    previousNote.addEventListener("keydown", (event) => submitTrackingNoteOnEnter(event, startNextTask));
-    manualPreviousNote.addEventListener("keydown", (event) => submitTrackingNoteOnEnter(event, startManualTask));
+    journalContractSelect.addEventListener("change", scheduleJournalSave);
+    journalProjectSelect.addEventListener("change", scheduleJournalSave);
+    journalDate.addEventListener("change", () => {
+        if (loadedJournalDate && loadedJournalDate !== journalDate.value) saveJournal(loadedJournalDate);
+        loadJournalForDate(journalDate.value);
+    });
+    journalPrev.addEventListener("click", () => shiftJournalDay(-1));
+    journalNextDay.addEventListener("click", () => shiftJournalDay(1));
     if (undoButton) {
         undoButton.addEventListener("click", () => undoLast());
     }
@@ -254,13 +281,6 @@ function bindEvents() {
         renderNotesPage();
     });
     notesProjectSelect.addEventListener("change", () => renderNotesPage());
-
-    confirmEdit.addEventListener("click", (event) => {
-        event.preventDefault();
-        saveEntryEdit();
-    });
-
-    cancelEdit.addEventListener("click", () => editDialog.close());
 
     reminderOpen.addEventListener("click", () => {
         reminderDialog.close();
@@ -333,7 +353,8 @@ function handleKeyboardShortcuts(event) {
 
     if (event.ctrlKey && key === "n") {
         event.preventDefault();
-        startNextTask();
+        showPage("tracking");
+        focusEntryHour();
         return;
     }
 
@@ -343,15 +364,10 @@ function handleKeyboardShortcuts(event) {
         return;
     }
 
-    if (event.ctrlKey && key === "s" && currentPage() === "projects") {
-        event.preventDefault();
-        saveJournal();
-        return;
-    }
-
     if (event.ctrlKey && key === "enter" && currentPage() === "projects") {
         event.preventDefault();
         saveJournal();
+        focusNextJournalSection(event.target);
         return;
     }
 
@@ -371,8 +387,20 @@ function handleKeyboardShortcuts(event) {
         return;
     }
 
+    if (currentPage() === "projects" && event.key === "ArrowLeft") {
+        event.preventDefault();
+        shiftJournalDay(-1);
+        return;
+    }
+
+    if (currentPage() === "projects" && event.key === "ArrowRight") {
+        event.preventDefault();
+        shiftJournalDay(1);
+        return;
+    }
+
     if (goPrefixActive) {
-        const map = { t: "tracking", d: "dashboard", p: "projects", s: "settings", n: "notes" };
+        const map = { t: "tracking", d: "dashboard", j: "projects", p: "projects", s: "settings", n: "notes" };
         if (map[key]) {
             event.preventDefault();
             showPage(map[key]);
@@ -443,13 +471,18 @@ function showPage(pageName) {
         renderNotesPage();
     }
 
-    focusFirstElementInActivePage();
+    if (pageName === "tracking") {
+        setEntryDefaults();
+        requestAnimationFrame(focusEntryHour);
+    } else {
+        focusFirstElementInActivePage();
+    }
 }
 
 function applyTodayDefaults() {
     const today = formatDateOnly(new Date());
-    journalDate.value = today;
-    manualStartTime.value = forceDatePartToToday(manualStartTime.value);
+    if (!journalDate.value) journalDate.value = today;
+    if (!entryDate.value) entryDate.value = today;
 }
 
 function handleRangeSelection() {
@@ -555,6 +588,121 @@ function submitSettingsInputOnEnter(event, action) {
     action();
 }
 
+function focusEntryHour() {
+    entryHour.focus();
+    entryHour.select();
+}
+
+function setEntryDefaults(preferredDate) {
+    const latest = [...state.entries].sort((a, b) => new Date(b.startRaw) - new Date(a.startRaw))[0];
+    const base = preferredDate || (latest?.endRaw ? new Date(latest.endRaw) : HoursPilotLogic.roundedQuarter(new Date()));
+    entryDate.value = formatDateOnly(base);
+    const hour = base.getHours();
+    entryHour.value = String(hour % 12 || 12);
+    entryMinute.value = ["00", "15", "30", "45"].includes(String(base.getMinutes()).padStart(2, "0"))
+        ? String(base.getMinutes()).padStart(2, "0") : "00";
+    entryPeriod.value = hour >= 12 ? "PM" : "AM";
+    periodWasOverridden = false;
+    if (!entryContract.value) entryContract.value = latest?.contract || state.settings.contracts[0]?.name || "None";
+    updateEntryProjectOptions();
+    if (latest && getContract(entryContract.value)?.projects.includes(latest.project)) entryProject.value = latest.project;
+}
+
+function handleHourInput() {
+    entryHour.value = entryHour.value.replace(/\D/g, "").slice(0, 2);
+    const hour = Number(entryHour.value);
+    if (hour >= 1 && hour <= 12 && !periodWasOverridden) {
+        const nearby = [...state.entries].sort((a, b) => new Date(b.startRaw) - new Date(a.startRaw))[0];
+        entryPeriod.value = HoursPilotLogic.inferPeriod(hour, nearby?.endRaw || nearby?.startRaw);
+    }
+    if (entryHour.value.length === 2 && hour >= 10 && hour <= 12) entryMinute.focus();
+    if (entryHour.value.length === 1 && hour >= 2 && hour <= 9) {
+        setTimeout(() => {
+            if (document.activeElement === entryHour && entryHour.value === String(hour)) entryMinute.focus();
+        }, 350);
+    }
+}
+
+function handleEntryDateKeydown(event) {
+    if (/^\d$/.test(event.key)) {
+        entryDateDigitCount += 1;
+        if (entryDateDigitCount === 2) {
+            setTimeout(() => {
+                if (document.activeElement === entryDate) entryHour.focus();
+            }, 0);
+        }
+        return;
+    }
+    if (event.key === "Backspace" || event.key === "Delete") entryDateDigitCount = 0;
+}
+
+function handleEntryMinuteKeydown(event) {
+    const minutesByFirstDigit = { 0: "00", 1: "15", 3: "30", 4: "45" };
+    if (minutesByFirstDigit[event.key]) {
+        event.preventDefault();
+        entryMinute.value = minutesByFirstDigit[event.key];
+        focusEntryContract();
+        return;
+    }
+    handleEntryFieldKeydown(event);
+}
+
+function matchingEntryOption(values, typedValue) {
+    const typed = typedValue.trim().toLowerCase();
+    return values.find((value) => value.toLowerCase().startsWith(typed)) || values[0] || "";
+}
+
+function focusEntryContract() {
+    if (!getContract(entryContract.value)) {
+        entryContract.value = matchingEntryOption(state.settings.contracts.map((contract) => contract.name), entryContract.value);
+        updateEntryProjectOptions();
+    }
+    entryContract.focus();
+    entryContract.select();
+}
+
+function acceptEntryContract() {
+    entryContract.value = matchingEntryOption(state.settings.contracts.map((contract) => contract.name), entryContract.value);
+    updateEntryProjectOptions();
+    entryProject.focus();
+    entryProject.select();
+}
+
+function acceptEntryProject() {
+    const projects = getContract(entryContract.value)?.projects || ["None"];
+    entryProject.value = matchingEntryOption(projects, entryProject.value);
+    entryTask.focus();
+}
+
+function handleEntryFieldKeydown(event) {
+    if (event.key !== "Enter" && event.key !== "Tab") return;
+    if (event.key === "Tab" && event.shiftKey) return;
+
+    if (event.target === entryContract) {
+        event.preventDefault();
+        event.stopPropagation();
+        acceptEntryContract();
+        return;
+    }
+
+    if (event.target === entryProject) {
+        event.preventDefault();
+        event.stopPropagation();
+        acceptEntryProject();
+        return;
+    }
+
+    const order = [entryHour, entryMinute, entryContract, entryProject, entryTask];
+    const next = order[order.indexOf(event.target) + 1];
+    if (!next) return;
+    event.preventDefault();
+    event.stopPropagation();
+    next.focus();
+    next.select?.();
+}
+
+entryPeriod.addEventListener("change", () => { periodWasOverridden = true; });
+
 async function setupCsvBackend() {
     if (isDesktopHost) {
         window.chrome.webview.addEventListener("message", (event) => handleDesktopHostMessage(event.data));
@@ -563,8 +711,10 @@ async function setupCsvBackend() {
         return;
     }
 
+    if (await setupLocalCsvServer()) return;
+
     if (!("showOpenFilePicker" in window)) {
-        csvStatus.textContent = "Automatic CSV sync requires Chromium browser file access. Running local-only mode.";
+        csvStatus.textContent = "Start Hours Pilot local server to use a persistent CSV in Safari.";
         return;
     }
 
@@ -581,14 +731,53 @@ async function setupCsvBackend() {
     csvFileLabel.textContent = "No CSV connected";
 }
 
+async function setupLocalCsvServer() {
+    try {
+        const response = await fetch("/api/csv/status", { cache: "no-store" });
+        if (!response.ok) return false;
+        localCsvServerConnected = true;
+        applyLocalCsvStatus(await response.json());
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function applyLocalCsvStatus(payload) {
+    csvPath.value = payload.path || "";
+    csvFileLabel.textContent = payload.fileName || CSV_FILE_NAME;
+    csvStatus.textContent = payload.exists
+        ? "CSV connected. Auto-sync is active."
+        : "CSV ready. It will be created when you save your first entry.";
+    suppressCsvWrite = true;
+    loadEntriesFromCsvText(payload.csvText || "");
+    suppressCsvWrite = false;
+}
+
 async function connectCsvFile() {
     if (isDesktopHost) {
         window.chrome.webview.postMessage({ type: "csv-pick" });
         return;
     }
 
+    if (localCsvServerConnected) {
+        try {
+            const response = await fetch("/api/csv/configure", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ path: csvPath.value.trim() })
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.error || "CSV configuration failed.");
+            applyLocalCsvStatus(payload);
+        } catch (error) {
+            csvStatus.textContent = error.message || "Could not configure CSV.";
+        }
+        return;
+    }
+
     if (!("showOpenFilePicker" in window)) {
-        csvStatus.textContent = "CSV connect unavailable in this browser.";
+        csvStatus.textContent = "Start Hours Pilot local server to use a persistent CSV in Safari.";
         return;
     }
 
@@ -600,7 +789,6 @@ async function connectCsvFile() {
         csvFileHandle = handles[0];
         await storeCsvHandle(csvFileHandle);
         csvFileLabel.textContent = csvFileHandle.name;
-
         await loadEntriesFromConnectedCsv();
         csvStatus.textContent = "CSV connected. Auto-sync is active.";
     } catch {
@@ -759,6 +947,15 @@ function queueCsvWrite() {
         return;
     }
 
+    if (localCsvServerConnected) {
+        csvWriteChain = csvWriteChain
+            .then(() => writeEntriesToCsv())
+            .catch(() => {
+                csvStatus.textContent = "Auto-save to CSV failed.";
+            });
+        return;
+    }
+
     if (!csvFileHandle) {
         return;
     }
@@ -771,7 +968,7 @@ function queueCsvWrite() {
 }
 
 async function writeEntriesToCsv() {
-    if (!isDesktopHost && !csvFileHandle) {
+    if (!isDesktopHost && !localCsvServerConnected && !csvFileHandle) {
         return;
     }
 
@@ -816,6 +1013,19 @@ async function writeEntriesToCsv() {
         return;
     }
 
+    if (localCsvServerConnected) {
+        const response = await fetch("/api/csv/write", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ csvText: csv, rowCount: rows.length })
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "CSV write failed.");
+        csvFileLabel.textContent = payload.fileName || CSV_FILE_NAME;
+        csvStatus.textContent = `Auto-synced  entries.`;
+        return;
+    }
+
     const writable = await csvFileHandle.createWritable();
     await writable.write(csv);
     await writable.close();
@@ -828,7 +1038,7 @@ function currentPage() {
 
 function render() {
     updateActiveStatus();
-    renderTodayEntries();
+    renderRecentEntries();
     renderDashboard();
     renderContractsAndProjects();
     renderNotesPage();
@@ -836,37 +1046,27 @@ function render() {
 
 function updateContractSelectors() {
     const contracts = state.settings.contracts;
-    replaceOptions(contractSelect, contracts.map((c) => c.name));
-    replaceOptions(manualContractSelect, contracts.map((c) => c.name));
+    const selectedProjectContract = projectContract.value;
+    const selectedJournalContract = journalContractSelect.value;
+    const selectedNotesContract = notesContractSelect.value;
+    replaceDataList(contractOptions, contracts.map((c) => c.name));
     replaceOptions(journalContractSelect, contracts.map((c) => c.name));
     replaceOptions(projectContract, contracts.map((c) => c.name));
-    replaceOptions(editContract, contracts.map((c) => c.name));
     replaceOptions(notesContractSelect, ["All", ...contracts.map((c) => c.name)]);
 
-    if (!contracts.some((c) => c.name === contractSelect.value)) {
-        contractSelect.value = contracts[0].name;
+    if (!contracts.some((c) => c.name === entryContract.value)) {
+        entryContract.value = contracts[0].name;
     }
 
-    if (!contracts.some((c) => c.name === projectContract.value)) {
-        projectContract.value = contracts[0].name;
-    }
+    projectContract.value = contracts.some((c) => c.name === selectedProjectContract)
+        ? selectedProjectContract : contracts[0].name;
+    journalContractSelect.value = contracts.some((c) => c.name === selectedJournalContract)
+        ? selectedJournalContract : contracts[0].name;
+    notesContractSelect.value = ["All", ...contracts.map((c) => c.name)].includes(selectedNotesContract)
+        ? selectedNotesContract : "All";
 
-    if (!contracts.some((c) => c.name === manualContractSelect.value)) {
-        manualContractSelect.value = contracts[0].name;
-    }
-
-    if (!contracts.some((c) => c.name === journalContractSelect.value)) {
-        journalContractSelect.value = contracts[0].name;
-    }
-
-    if (!["All", ...contracts.map((c) => c.name)].includes(notesContractSelect.value)) {
-        notesContractSelect.value = "All";
-    }
-
-    updateProjectSelect();
-    updateManualProjectSelect();
+    updateEntryProjectOptions();
     updateJournalProjectSelect();
-    updateEditProjectSelect();
     updateNotesProjectSelect();
 }
 
@@ -976,28 +1176,20 @@ function replaceOptions(selectEl, values) {
     });
 }
 
-function updateProjectSelect() {
-    const contract = getContract(contractSelect.value);
-    const projects = contract ? contract.projects : ["None"];
-    replaceOptions(projectSelect, projects);
-    if (contract?.name === "None") {
-        projectSelect.value = "None";
-        projectSelect.disabled = true;
-    } else {
-        projectSelect.disabled = false;
-    }
+function replaceDataList(list, values) {
+    list.innerHTML = values.map((value) => `<option value="${escapeHtml(value)}"></option>`).join("");
 }
 
-function updateManualProjectSelect() {
-    const contract = getContract(manualContractSelect.value);
+function updateEntryProjectOptions() {
+    const previousValue = entryProject.value;
+    const contract = getContract(entryContract.value);
     const projects = contract ? contract.projects : ["None"];
-    replaceOptions(manualProjectSelect, projects);
+    replaceDataList(projectOptions, projects);
     if (contract?.name === "None") {
-        manualProjectSelect.value = "None";
-        manualProjectSelect.disabled = true;
-    } else {
-        manualProjectSelect.disabled = false;
+        entryProject.value = "None";
+        return;
     }
+    entryProject.value = projects.includes(previousValue) ? previousValue : (projects[0] || "");
 }
 
 function updateJournalProjectSelect() {
@@ -1012,40 +1204,26 @@ function updateJournalProjectSelect() {
     }
 }
 
-function updateEditProjectSelect() {
-    const contract = getContract(editContract.value);
-    const projects = contract ? contract.projects : ["None"];
-    replaceOptions(editProject, projects);
-    editProject.disabled = contract?.name === "None";
-}
-
 function getContract(name) {
     return state.settings.contracts.find((c) => c.name === name) || null;
 }
 
-function startNextTask() {
-    const now = new Date();
-    const contract = contractSelect.value;
-    const project = contract === "None" ? "None" : projectSelect.value;
-    const stopNote = previousNote.value.trim();
-
-    startTaskAtTime(now, contract, project, stopNote);
-    previousNote.value = "";
-}
-
-function startManualTask() {
-    if (!manualStartTime.value) {
+function saveQuickEntry() {
+    const hour24 = HoursPilotLogic.to24Hour(entryHour.value, entryPeriod.value);
+    const contract = getContract(entryContract.value);
+    entryHour.setCustomValidity(hour24 === null ? "Enter an hour from 1 to 12." : "");
+    entryContract.setCustomValidity(contract ? "" : "Choose a contract from the list.");
+    entryProject.setCustomValidity(contract?.projects.includes(entryProject.value) ? "" : "Choose a project from the list.");
+    if (!quickEntry.checkValidity() || hour24 === null || !contract || !contract.projects.includes(entryProject.value)) {
+        quickEntry.reportValidity();
         return;
     }
+    const startAt = new Date(`${entryDate.value}T00:00:00`);
+    startAt.setHours(hour24, Number(entryMinute.value), 0, 0);
+    if (Number.isNaN(startAt.valueOf())) return;
 
-    const startAt = new Date(manualStartTime.value);
-    if (Number.isNaN(startAt.valueOf())) {
-        return;
-    }
-
-    const contract = manualContractSelect.value;
-    const project = contract === "None" ? "None" : manualProjectSelect.value;
-    const currentTaskNote = manualPreviousNote.value.trim();
+    const project = contract.name === "None" ? "None" : entryProject.value;
+    const currentTaskNote = entryTask.value.trim();
     const startIso = startAt.toISOString();
 
     pushUndo();
@@ -1061,7 +1239,7 @@ function startManualTask() {
         endRounded: null,
         durationMinutesExact: 0,
         durationMinutesRounded: 0,
-        contract,
+        contract: contract.name,
         project,
         note: currentTaskNote
     };
@@ -1071,10 +1249,12 @@ function startManualTask() {
     state.entries.sort((a, b) => new Date(a.startRaw) - new Date(b.startRaw));
     refreshActiveEntryId();
 
-    manualPreviousNote.value = "";
+    entryTask.value = "";
     checkJournalReminder(startAt);
     saveState();
     render();
+    setEntryDefaults(startAt);
+    focusEntryHour();
 }
 
 function closePreviousEntryAt(startIso) {
@@ -1195,101 +1375,104 @@ function updateActiveStatus() {
         }, 0);
 
     activeStatus.textContent = `${formatMinutes(todayEntriesTotal)} worked`;
+    todayTotal.textContent = `${formatMinutes(todayEntriesTotal)} today`;
 }
 
-function renderTodayEntries() {
-    const today = formatDateOnly(new Date());
+function renderRecentEntries() {
     const entries = state.entries
-        .filter((entry) => entry.date === today)
         .sort((a, b) => new Date(b.startRaw) - new Date(a.startRaw));
 
-    todayEntries.innerHTML = "";
+    recentEntries.innerHTML = "";
 
     if (!entries.length) {
         const row = document.createElement("tr");
-        row.innerHTML = `<td colspan="7" class="muted">No entries yet for today.</td>`;
-        todayEntries.appendChild(row);
+        row.innerHTML = `<td colspan="7" class="muted empty-history">No entries yet. Start with the row above.</td>`;
+        recentEntries.appendChild(row);
         return;
     }
 
+    let currentDate = "";
     entries.forEach((entry) => {
         recalcEntry(entry);
+        if (entry.date !== currentDate) {
+            currentDate = entry.date;
+            const dayEntries = entries.filter((item) => item.date === currentDate);
+            const dayTotal = dayEntries.reduce((total, item) => total + item.durationMinutesRounded, 0);
+            const divider = document.createElement("tr");
+            divider.className = "day-divider";
+            divider.innerHTML = `<th colspan="7"><span>${formatDayHeading(parseDateOnlyInput(currentDate))}</span><strong class="mono">${formatMinutes(dayTotal)}</strong></th>`;
+            recentEntries.appendChild(divider);
+        }
         const row = document.createElement("tr");
+        row.dataset.entryId = entry.id;
         row.innerHTML = `
-      <td class="mono">${formatTime(new Date(entry.startRaw))}</td>
-      <td class="mono">${entry.endRaw ? formatTime(new Date(entry.endRaw)) : "Active"}</td>
-      <td>${entry.contract}</td>
-      <td>${entry.project}</td>
-      <td>${formatMinutes(entry.durationMinutesRounded)}</td>
-      <td>${escapeHtml(entry.note || "")}</td>
+      <td><input class="cell-input mono cell-time" data-field="start" type="time" step="900" value="${toTimeValue(new Date(entry.startRaw))}" aria-label="Start time" /></td>
+      <td><input class="cell-input mono cell-time" data-field="end" type="time" step="900" value="${entry.endRaw ? toTimeValue(new Date(entry.endRaw)) : ""}" aria-label="End time" /></td>
+      <td><select class="cell-input" data-field="contract" aria-label="Contract">${optionsHtml(state.settings.contracts.map((item) => item.name), entry.contract)}</select></td>
+      <td><select class="cell-input" data-field="project" aria-label="Project">${optionsHtml((getContract(entry.contract)?.projects || ["None"]), entry.project)}</select></td>
+      <td class="mono duration-cell">${formatMinutes(entry.durationMinutesRounded)}</td>
+      <td><input class="cell-input cell-note" data-field="note" value="${escapeHtml(entry.note || "")}" aria-label="Task note" maxlength="120" /></td>
       <td>
-        <button class="ghost" data-action="edit" data-id="${entry.id}">Edit</button>
-        <button class="ghost" data-action="delete" data-id="${entry.id}">Delete</button>
+        <button class="delete-entry" data-action="delete" data-id="${entry.id}" aria-label="Delete entry" title="Delete entry (Delete key)">&times;</button>
       </td>
     `;
-        todayEntries.appendChild(row);
+        recentEntries.appendChild(row);
     });
 
-    todayEntries.querySelectorAll("button[data-action='edit']").forEach((button) => {
-        button.addEventListener("click", () => openEditDialog(button.dataset.id));
-    });
-
-    todayEntries.querySelectorAll("button[data-action='delete']").forEach((button) => {
+    recentEntries.querySelectorAll("button[data-action='delete']").forEach((button) => {
         button.addEventListener("click", () => deleteEntry(button.dataset.id));
     });
-
-    saveState();
+    recentEntries.querySelectorAll(".cell-input").forEach((input) => {
+        input.addEventListener("focus", () => input.select?.());
+        input.addEventListener("change", () => saveInlineEdit(input));
+        input.addEventListener("keydown", handleHistoryKeydown);
+    });
 }
 
-function openEditDialog(entryId) {
-    const entry = state.entries.find((item) => item.id === entryId);
-    if (!entry) {
-        return;
-    }
-
-    editingEntryId = entryId;
-    editStart.value = toLocalDateTimeValue(new Date(entry.startRaw));
-    editEnd.value = entry.endRaw ? toLocalDateTimeValue(new Date(entry.endRaw)) : "";
-    editContract.value = entry.contract;
-    updateEditProjectSelect();
-    editProject.value = entry.project;
-    editNote.value = entry.note || "";
-    editDialog.showModal();
-}
-
-function saveEntryEdit() {
-    const entry = state.entries.find((item) => item.id === editingEntryId);
-    if (!entry) {
-        return;
-    }
-
-    const start = new Date(editStart.value);
-    const end = editEnd.value ? new Date(editEnd.value) : null;
-    if (Number.isNaN(start.valueOf()) || (end && Number.isNaN(end.valueOf()))) {
-        return;
-    }
-
-    if (end && end < start) {
-        alert("End time cannot be before start time.");
-        return;
-    }
-
+function saveInlineEdit(input) {
+    const row = input.closest("tr[data-entry-id]");
+    const entry = state.entries.find((item) => item.id === row?.dataset.entryId);
+    if (!entry) return;
     pushUndo();
-
-    entry.startRaw = start.toISOString();
-    entry.endRaw = end ? end.toISOString() : null;
-    entry.contract = editContract.value;
-    entry.project = editContract.value === "None" ? "None" : editProject.value;
-    entry.note = editNote.value.trim();
+    const field = input.dataset.field;
+    if (field === "start" || field === "end") {
+        const date = field === "start" ? new Date(entry.startRaw) : new Date(entry.endRaw || entry.startRaw);
+        const [hours, minutes] = input.value.split(":").map(Number);
+        if (!input.value && field === "end") entry.endRaw = null;
+        else {
+            date.setHours(hours, minutes, 0, 0);
+            if (field === "start") entry.startRaw = date.toISOString();
+            else entry.endRaw = date.toISOString();
+        }
+        if (entry.endRaw && new Date(entry.endRaw) < new Date(entry.startRaw)) {
+            undoStack.pop();
+            renderRecentEntries();
+            return;
+        }
+    } else if (field === "contract") {
+        entry.contract = input.value;
+        entry.project = getContract(input.value)?.projects[0] || "None";
+    } else if (field === "project") entry.project = input.value;
+    else entry.note = input.value.trim();
     recalcEntry(entry);
     state.entries.sort((a, b) => new Date(a.startRaw) - new Date(b.startRaw));
-
-    editDialog.close();
+    refreshActiveEntryId();
     saveState();
     render();
 }
 
-editContract.addEventListener("change", updateEditProjectSelect);
+function handleHistoryKeydown(event) {
+    if (event.key === "Delete" && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        deleteEntry(event.target.closest("tr")?.dataset.entryId);
+        return;
+    }
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    event.target.blur();
+    const inputs = Array.from(recentEntries.querySelectorAll(".cell-input"));
+    inputs[(inputs.indexOf(event.target) + 1) % inputs.length]?.focus();
+}
 
 function deleteEntry(entryId) {
     pushUndo();
@@ -1549,8 +1732,8 @@ function getRangeBounds(mode, anchorDate) {
     return { start, end };
 }
 
-function saveJournal() {
-    const date = journalDate.value || formatDateOnly(new Date());
+function saveJournal(dateOverride) {
+    const date = typeof dateOverride === "string" ? dateOverride : (loadedJournalDate || journalDate.value || formatDateOnly(new Date()));
     state.journals[date] = {
         contract: journalContractSelect.value || "None",
         project: journalContractSelect.value === "None" ? "None" : (journalProjectSelect.value || "None"),
@@ -1560,18 +1743,19 @@ function saveJournal() {
         updatedAt: new Date().toISOString()
     };
 
-    journalDid.value = state.journals[date].did;
-    journalLearned.value = state.journals[date].learned;
-    journalNext.value = state.journals[date].next;
+    if (document.activeElement !== journalDid) journalDid.value = state.journals[date].did;
+    if (document.activeElement !== journalLearned) journalLearned.value = state.journals[date].learned;
+    if (document.activeElement !== journalNext) journalNext.value = state.journals[date].next;
 
     saveState();
 }
 
 function loadJournalForDate(dateValue) {
     const date = dateValue || formatDateOnly(new Date());
+    loadedJournalDate = date;
     const journal = state.journals[date] || {
-        contract: contractSelect.value || "None",
-        project: projectSelect.value || "None",
+        contract: entryContract.value || "None",
+        project: entryProject.value || "None",
         did: "",
         learned: "",
         next: ""
@@ -1582,6 +1766,48 @@ function loadJournalForDate(dateValue) {
     journalDid.value = normalizeBulletText(journal.did || "");
     journalLearned.value = normalizeBulletText(journal.learned || "");
     journalNext.value = normalizeBulletText(journal.next || "");
+    const dateObject = parseDateOnlyInput(date);
+    journalDateLabel.textContent = formatDayHeading(dateObject);
+    renderJournalDays(dateObject);
+}
+
+function shiftJournalDay(amount) {
+    saveJournal();
+    const date = parseDateOnlyInput(journalDate.value) || new Date();
+    date.setDate(date.getDate() + amount);
+    journalDate.value = formatDateOnly(date);
+    loadJournalForDate(journalDate.value);
+}
+
+function renderJournalDays(selectedDate) {
+    journalDays.innerHTML = "";
+    for (let offset = -4; offset <= 4; offset += 1) {
+        const date = new Date(selectedDate);
+        date.setDate(date.getDate() + offset);
+        const key = formatDateOnly(date);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = key === journalDate.value ? "active" : "";
+        button.innerHTML = `<span>${date.toLocaleDateString([], { weekday: "short" })}</span><strong>${date.getDate()}</strong>`;
+        button.addEventListener("click", () => {
+            saveJournal();
+            journalDate.value = key;
+            loadJournalForDate(key);
+        });
+        journalDays.appendChild(button);
+    }
+    journalDays.querySelector(".active")?.scrollIntoView({ block: "nearest", inline: "center" });
+}
+
+function scheduleJournalSave() {
+    clearTimeout(journalSaveTimer);
+    journalSaveTimer = setTimeout(saveJournal, 300);
+}
+
+function focusNextJournalSection(current) {
+    const sections = [journalDid, journalLearned, journalNext];
+    const index = sections.indexOf(current);
+    sections[(index + 1 + sections.length) % sections.length].focus();
 }
 
 function hasJournalContent(journal) {
@@ -1744,7 +1970,7 @@ function removeProject(contractName, projectName) {
     saveState();
     updateContractSelectors();
     renderProjectList();
-    renderTodayEntries();
+    renderRecentEntries();
 }
 
 function applyTheme(theme) {
@@ -1762,7 +1988,6 @@ function startClock() {
             minute: "2-digit"
         });
         updateActiveStatus();
-        renderTodayEntries();
         if (currentPage() === "dashboard") {
             renderDashboard();
         }
@@ -1794,6 +2019,12 @@ function renderPalette() {
 function setupJournalBulletEditing() {
     [journalDid, journalLearned, journalNext].forEach((field) => {
         field.addEventListener("keydown", (event) => {
+            if (event.ctrlKey && event.key === "Enter") {
+                event.preventDefault();
+                saveJournal();
+                focusNextJournalSection(field);
+                return;
+            }
             if (event.key !== "Enter") {
                 return;
             }
@@ -1808,7 +2039,9 @@ function setupJournalBulletEditing() {
 
         field.addEventListener("blur", () => {
             field.value = normalizeBulletText(field.value);
+            saveJournal();
         });
+        field.addEventListener("input", scheduleJournalSave);
     });
 }
 
@@ -1875,6 +2108,18 @@ function parseDateOnlyInput(value) {
 
 function formatTime(date) {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function toTimeValue(date) {
+    return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function formatDayHeading(date) {
+    return date.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric", year: "numeric" });
+}
+
+function optionsHtml(values, selected) {
+    return values.map((value) => `<option value="${escapeHtml(value)}"${value === selected ? " selected" : ""}>${escapeHtml(value)}</option>`).join("");
 }
 
 function toLocalDateTimeValue(date) {

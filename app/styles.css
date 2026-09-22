@@ -609,3 +609,187 @@ menu {
     align-items: center;
     gap: 0.75rem;
 }
+
+/* Dense desktop workspace */
+:root {
+    --bg: #111513;
+    --bg2: #171c19;
+    --panel: #1b211e;
+    --panel-raised: #202723;
+    --text: #e4e8df;
+    --muted: #8f9991;
+    --accent: #72d572;
+    --danger: #ef806f;
+    --line: #39413b;
+    --input: #141916;
+}
+
+:root[data-theme="light"] {
+    --bg: #efeee7;
+    --bg2: #e6e4db;
+    --panel: #f8f7f1;
+    --panel-raised: #fffef8;
+    --text: #252923;
+    --muted: #687067;
+    --accent: #267447;
+    --danger: #a53c30;
+    --line: #c9ccc2;
+    --input: #fffef9;
+}
+
+html, body, .app { height: 100%; overflow: hidden; }
+
+body {
+    min-height: 0;
+    background: var(--bg);
+    font-size: 14px;
+}
+
+.app { grid-template-columns: 156px minmax(0, 1fr); }
+
+.sidebar {
+    padding: 12px 8px;
+    gap: 14px;
+    background: var(--bg2);
+    backdrop-filter: none;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 6px 8px;
+    font-weight: 700;
+    letter-spacing: -.02em;
+}
+
+.brand-mark {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    background: var(--accent);
+    color: #15180f;
+    font: 700 11px "IBM Plex Mono", monospace;
+}
+
+.nav { gap: 2px; }
+
+.nav-btn, .sidebar-help {
+    justify-content: flex-start;
+    align-items: center;
+    gap: 9px;
+    border: 0;
+    border-left: 2px solid transparent;
+    border-radius: 2px;
+    padding: 7px 8px;
+    color: var(--muted);
+}
+
+.nav-btn:hover, .sidebar-help:hover { background: var(--panel); color: var(--text); }
+.nav-btn.active { background: var(--panel); border-color: var(--accent); color: var(--text); box-shadow: none; }
+.nav-key { color: var(--muted); font: 500 10px "IBM Plex Mono", monospace; width: 14px; }
+.sidebar-help { margin-top: auto; width: 100%; text-align: left; }
+
+.content { height: 100vh; }
+.status-bar { min-height: 36px; padding: 6px 16px; background: var(--bg2); font-size: 12px; }
+.page { min-height: 0; padding: 12px 16px 16px; gap: 10px; }
+.page.active { display: grid; flex: 1; }
+#page-tracking.active { grid-template-rows: auto auto minmax(0, 1fr); }
+
+h2 { margin: 0; font-size: 19px; letter-spacing: -.02em; }
+h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; }
+.page-heading, .journal-heading { display: flex; align-items: center; justify-content: space-between; }
+.page-heading > div, .journal-heading > div:first-child { display: flex; align-items: baseline; gap: 10px; }
+.page-subtitle { color: var(--muted); font-size: 12px; }
+.summary-total { color: var(--accent); font-size: 12px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+.card { border-radius: 3px; padding: 10px; background: var(--panel); box-shadow: none; }
+label { gap: 3px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+input, select, textarea { border-radius: 2px; background: var(--input); padding: 6px 7px; min-height: 30px; }
+button { border-radius: 2px; padding: 6px 9px; }
+
+.entry-strip {
+    display: grid;
+    grid-template-columns: 128px 168px minmax(120px, .75fr) minmax(120px, .8fr) minmax(240px, 2fr);
+    gap: 6px;
+    align-items: end;
+    padding: 9px;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    background: var(--panel);
+}
+
+.entry-time { display: flex; align-items: center; gap: 3px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.entry-time legend { display: block; width: 100%; padding: 0 0 3px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.entry-time input { width: 38px; text-align: center; }
+.entry-time select { width: 53px; padding-left: 5px; padding-right: 2px; }
+.entry-time select:last-child { width: 57px; }
+
+.history-panel { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); border: 1px solid var(--line); background: var(--panel); }
+.history-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 7px 9px; border-bottom: 1px solid var(--line); }
+.history-toolbar .muted { font-size: 11px; }
+.history-scroll { overflow: auto; margin: 0; }
+table { font-size: 12px; table-layout: fixed; }
+thead { position: sticky; top: 0; z-index: 3; background: var(--panel-raised); }
+th, td { height: 32px; padding: 3px 6px; }
+th { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .07em; }
+th:nth-child(1), th:nth-child(2) { width: 92px; }
+th:nth-child(3), th:nth-child(4) { width: 14%; }
+th:nth-child(5) { width: 90px; }
+th:nth-child(7) { width: 32px; }
+.day-divider th { position: sticky; top: 32px; z-index: 2; height: 27px; padding: 4px 8px; background: var(--bg2); color: var(--text); }
+.day-divider th span, .day-divider th strong { display: inline-block; }
+.day-divider th strong { float: right; color: var(--accent); }
+.cell-input { width: 100%; min-width: 0; min-height: 25px; padding: 2px 4px; border-color: transparent; background: transparent; font-size: 12px; }
+.cell-input:hover { border-color: var(--line); background: var(--input); }
+.cell-time { width: 78px; }
+.duration-cell { color: var(--muted); }
+.delete-entry { padding: 1px 6px; border-color: transparent; color: var(--muted); font-size: 17px; line-height: 1; }
+.delete-entry:hover, .delete-entry:focus-visible { color: var(--danger); border-color: var(--danger); }
+.empty-history { padding: 24px; text-align: center; }
+
+#page-projects.active { grid-template-rows: auto auto auto minmax(0, 1fr); }
+.journal-day-nav { display: flex; align-items: center; gap: 6px; }
+.journal-day-nav input { width: 125px; min-height: 27px; padding: 3px 5px; }
+.journal-day-nav strong { min-width: 180px; font-size: 12px; }
+.journal-day-nav button { min-height: 27px; padding: 3px 8px; }
+.journal-days { display: flex; gap: 1px; overflow-x: auto; border-block: 1px solid var(--line); background: var(--bg2); }
+.journal-days button { flex: 1 0 64px; display: grid; gap: 2px; justify-items: center; border: 0; border-bottom: 2px solid transparent; color: var(--muted); }
+.journal-days button span { font-size: 9px; text-transform: uppercase; }
+.journal-days button strong { font: 500 13px "IBM Plex Mono", monospace; }
+.journal-days button.active { color: var(--text); border-color: var(--accent); background: var(--panel); }
+.journal-meta { display: grid; grid-template-columns: minmax(160px, 260px) minmax(160px, 260px); gap: 8px; }
+.journal-paper { min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); background: var(--panel); }
+.journal-paper label { min-height: 0; display: grid; grid-template-rows: auto 1fr; gap: 0; }
+.journal-paper label + label { border-left: 1px solid var(--line); }
+.journal-paper label > span { padding: 8px 10px; border-bottom: 1px solid var(--line); color: var(--text); font-weight: 700; }
+.journal-paper textarea { min-height: 0; height: 100%; resize: none; border: 0; border-radius: 0; padding: 12px; line-height: 1.75; text-transform: none; letter-spacing: 0; background-color: var(--panel); background-image: linear-gradient(transparent calc(1.75em - 1px), color-mix(in srgb, var(--line), transparent 38%) 1px); background-size: 100% 1.75em; }
+
+.dashboard-range-controls { gap: 6px; }
+.dashboard-grid { gap: 8px; }
+.stats { gap: 3px; }
+.stats li { border-radius: 2px; padding: 5px 7px; }
+.week-plot { min-height: 220px; }
+.week-stack { min-height: 155px; border-radius: 2px 2px 0 0; }
+.bar { border-radius: 2px; }
+
+dialog { border-radius: 3px; }
+
+@media (max-width: 1100px) {
+    html, body, .app { overflow: auto; height: auto; }
+    .content { height: auto; }
+    .app { grid-template-columns: 132px minmax(0, 1fr); }
+    .sidebar { border-right: 1px solid var(--line); border-bottom: 0; }
+    .nav { grid-template-columns: 1fr; }
+    .entry-strip { grid-template-columns: 118px 168px 1fr 1fr; }
+    .entry-task { grid-column: 1 / -1; }
+    .journal-paper { grid-template-columns: 1fr; }
+    .journal-paper label + label { border-left: 0; border-top: 1px solid var(--line); }
+    .journal-paper textarea { min-height: 180px; }
+}
+
+.csv-form { grid-template-columns: minmax(220px, 1fr) auto minmax(120px, 1fr); }
+.csv-path-label { min-width: 0; }
+.csv-path-label input { width: 100%; }
