@@ -54,7 +54,7 @@
                         <select id="entry-period" aria-label="AM or PM"><option>AM</option><option>PM</option></select>
                     </fieldset>
                     <label>Contract<input id="entry-contract" list="contract-options" required /></label>
-                    <label>Project<input id="entry-project" list="project-options" required /></label>
+                    <label id="entry-project-field">Project<input id="entry-project" list="project-options" required /></label>
                     <label class="entry-task">Task<input id="entry-task" maxlength="120" placeholder="What are you working on?" /></label>
                     <datalist id="contract-options"></datalist>
                     <datalist id="project-options"></datalist>
@@ -83,30 +83,30 @@
 
             <section class="page" id="page-dashboard" aria-labelledby="dashboard-title">
                 <h2 id="dashboard-title">Dashboard</h2>
-                <div class="card grid-5">
-                    <div class="dashboard-range-controls">
-                        <button id="range-prev" class="ghost range-nav" aria-label="Previous range">&larr;</button>
-                        <label>Range
-                            <select id="range-select">
-                                <option value="day">Day</option>
-                                <option value="week">Week</option>
-                                <option value="month">Month</option>
-                                <option value="year">Year</option>
-                            </select>
-                        </label>
-                        <label>Start
-                            <input id="range-start" type="date" />
-                        </label>
-                        <label>End
-                            <input id="range-end" type="date" />
-                        </label>
-                        <button id="range-next" class="ghost range-nav" aria-label="Next range">&rarr;</button>
-                    </div>
-                </div>
                 <div class="dashboard-grid" id="dashboard-grid">
                     <div class="card" id="dashboard-chart-card">
                         <h3 id="dashboard-chart-title">Time by Contract</h3>
                         <div id="contract-chart" class="bars"></div>
+                    </div>
+                    <div class="card report-controls">
+                        <div class="dashboard-range-controls">
+                            <button id="range-prev" class="ghost range-nav" aria-label="Previous range">&larr;</button>
+                            <label>Range
+                                <select id="range-select">
+                                    <option value="day">Day</option>
+                                    <option value="week">Week</option>
+                                    <option value="month">Month</option>
+                                    <option value="year">Year</option>
+                                </select>
+                            </label>
+                            <label>Start
+                                <input id="range-start" type="date" />
+                            </label>
+                            <label>End
+                                <input id="range-end" type="date" />
+                            </label>
+                            <button id="range-next" class="ghost range-nav" aria-label="Next range">&rarr;</button>
+                        </div>
                     </div>
                     <div class="card">
                         <h3>Totals</h3>

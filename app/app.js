@@ -40,18 +40,7 @@ let dashboardRangeState = {
     anchorDate: startOfWeek(new Date())
 };
 
-const contractColorPalette = [
-    "#0f766e",
-    "#5eead4",
-    "#1d4ed8",
-    "#93c5fd",
-    "#6d28d9",
-    "#c4b5fd",
-    "#0369a1",
-    "#a5f3fc",
-    "#334155",
-    "#e2e8f0"
-];
+const contractHues = [160, 215, 25, 278, 90, 330, 185, 45, 245, 120, 5, 300];
 
 const pages = {
     tracking: document.getElementById("page-tracking"),
@@ -73,6 +62,7 @@ const entryMinute = document.getElementById("entry-minute");
 const entryPeriod = document.getElementById("entry-period");
 const entryContract = document.getElementById("entry-contract");
 const entryProject = document.getElementById("entry-project");
+const entryProjectField = document.getElementById("entry-project-field");
 const entryTask = document.getElementById("entry-task");
 const contractOptions = document.getElementById("contract-options");
 const projectOptions = document.getElementById("project-options");
@@ -244,6 +234,7 @@ function bindEvents() {
     entryMinute.addEventListener("keydown", handleEntryMinuteKeydown);
     entryContract.addEventListener("input", updateEntryProjectOptions);
     entryContract.addEventListener("change", updateEntryProjectOptions);
+    entryProject.addEventListener("input", () => colorizeContract(entryProject, entryProject.value, entryContract.value));
     entryContract.addEventListener("keydown", handleEntryFieldKeydown);
     entryProject.addEventListener("keydown", handleEntryFieldKeydown);
     entryTask.addEventListener("keydown", (event) => {
@@ -254,7 +245,10 @@ function bindEvents() {
     });
     journalContractSelect.addEventListener("change", () => updateJournalProjectSelect());
     journalContractSelect.addEventListener("change", scheduleJournalSave);
-    journalProjectSelect.addEventListener("change", scheduleJournalSave);
+    journalProjectSelect.addEventListener("change", () => {
+        colorizeContract(journalProjectSelect, journalProjectSelect.value, journalContractSelect.value);
+        scheduleJournalSave();
+    });
     journalDate.addEventListener("change", () => {
         if (loadedJournalDate && loadedJournalDate !== journalDate.value) saveJournal(loadedJournalDate);
         loadJournalForDate(journalDate.value);
@@ -274,13 +268,19 @@ function bindEvents() {
     saveSettingsButton.addEventListener("click", () => saveSettings());
     newContract.addEventListener("keydown", (event) => submitSettingsInputOnEnter(event, addContract));
     newProject.addEventListener("keydown", (event) => submitSettingsInputOnEnter(event, addProject));
-    projectContract.addEventListener("change", () => renderProjectList());
+    projectContract.addEventListener("change", () => {
+        colorizeContract(projectContract, projectContract.value);
+        renderProjectList();
+    });
     connectCsvButton.addEventListener("click", () => connectCsvFile());
     notesContractSelect.addEventListener("change", () => {
         updateNotesProjectSelect();
         renderNotesPage();
     });
-    notesProjectSelect.addEventListener("change", () => renderNotesPage());
+    notesProjectSelect.addEventListener("change", () => {
+        colorizeContract(notesProjectSelect, notesProjectSelect.value, notesContractSelect.value);
+        renderNotesPage();
+    });
 
     reminderOpen.addEventListener("click", () => {
         reminderDialog.close();
@@ -664,6 +664,10 @@ function focusEntryContract() {
 function acceptEntryContract() {
     entryContract.value = matchingEntryOption(state.settings.contracts.map((contract) => contract.name), entryContract.value);
     updateEntryProjectOptions();
+    if (entryContract.value === "None") {
+        entryTask.focus();
+        return;
+    }
     entryProject.focus();
     entryProject.select();
 }
@@ -1068,6 +1072,8 @@ function updateContractSelectors() {
     updateEntryProjectOptions();
     updateJournalProjectSelect();
     updateNotesProjectSelect();
+    colorizeContract(projectContract, projectContract.value);
+    colorizeContract(notesContractSelect, notesContractSelect.value);
 }
 
 function mergeContractsFromEntries(entries) {
@@ -1107,6 +1113,8 @@ function updateNotesProjectSelect() {
         replaceOptions(notesProjectSelect, ["All"]);
         notesProjectSelect.value = "All";
         notesProjectSelect.disabled = true;
+        colorizeContract(notesContractSelect, "All");
+        colorizeContract(notesProjectSelect, "All");
         return;
     }
 
@@ -1117,6 +1125,8 @@ function updateNotesProjectSelect() {
         notesProjectSelect.value = "All";
     }
     notesProjectSelect.disabled = false;
+    colorizeContract(notesContractSelect, selectedContract);
+    colorizeContract(notesProjectSelect, notesProjectSelect.value, selectedContract);
 }
 
 function renderNotesPage() {
@@ -1157,7 +1167,7 @@ function renderNotesPage() {
     filtered.forEach((journal) => {
         const li = document.createElement("li");
         li.innerHTML = `
-            <span class="note-meta">${escapeHtml(journal.contract)} / ${escapeHtml(journal.project)} - ${escapeHtml(journal.date)}</span>
+            <span class="note-meta"><span class="${journal.contract === "None" ? "is-none" : "contract-colored"}" style="--contract-hue:${getContractHue(journal.contract)}">${escapeHtml(journal.contract)} / ${escapeHtml(journal.project)}</span> - ${escapeHtml(journal.date)}</span>
             ${renderJournalSection("Did / Tried", journal.did)}
             ${renderJournalSection("Learned", journal.learned)}
             ${renderJournalSection("Next / Blocker", journal.next)}
@@ -1172,24 +1182,31 @@ function replaceOptions(selectEl, values) {
         const option = document.createElement("option");
         option.value = value;
         option.textContent = value;
+        if (value === "None") option.className = "is-none";
         selectEl.appendChild(option);
     });
 }
 
 function replaceDataList(list, values) {
-    list.innerHTML = values.map((value) => `<option value="${escapeHtml(value)}"></option>`).join("");
+    list.innerHTML = values.map((value) => `<option value="${escapeHtml(value)}"${value === "None" ? ' class="is-none"' : ""}></option>`).join("");
 }
 
 function updateEntryProjectOptions() {
     const previousValue = entryProject.value;
     const contract = getContract(entryContract.value);
-    const projects = contract ? contract.projects : ["None"];
+    const projects = contract?.name === "None" ? [] : (contract?.projects || []);
     replaceDataList(projectOptions, projects);
+    entryProjectField.hidden = projects.length === 0;
+    entryProject.disabled = projects.length === 0;
+    entryProject.required = projects.length > 0;
+    quickEntry.classList.toggle("no-project", projects.length === 0);
     if (contract?.name === "None") {
         entryProject.value = "None";
-        return;
+    } else {
+        entryProject.value = projects.includes(previousValue) ? previousValue : (projects[0] || "");
     }
-    entryProject.value = projects.includes(previousValue) ? previousValue : (projects[0] || "");
+    colorizeContract(entryContract, entryContract.value);
+    colorizeContract(entryProject, entryProject.value, entryContract.value);
 }
 
 function updateJournalProjectSelect() {
@@ -1202,10 +1219,27 @@ function updateJournalProjectSelect() {
     } else {
         journalProjectSelect.disabled = false;
     }
+    journalProjectSelect.parentElement.hidden = contract?.name === "None";
+    colorizeContract(journalContractSelect, journalContractSelect.value);
+    colorizeContract(journalProjectSelect, journalProjectSelect.value, journalContractSelect.value);
 }
 
 function getContract(name) {
     return state.settings.contracts.find((c) => c.name === name) || null;
+}
+
+function getContractHue(name) {
+    const index = state.settings.contracts.filter((contract) => contract.name !== "None")
+        .findIndex((contract) => contract.name === name);
+    return contractHues[index % contractHues.length] ?? contractHues[0];
+}
+
+function colorizeContract(element, value, contractName = value) {
+    element.classList.toggle("is-none", value === "None");
+    const hasContractColor = Boolean(value && value !== "None" && getContract(contractName));
+    element.classList.toggle("contract-colored", hasContractColor);
+    if (hasContractColor) element.style.setProperty("--contract-hue", getContractHue(contractName));
+    else element.style.removeProperty("--contract-hue");
 }
 
 function saveQuickEntry() {
@@ -1369,13 +1403,15 @@ function updateActiveStatus() {
     const today = formatDateOnly(new Date());
     const todayEntriesTotal = state.entries
         .filter((entry) => entry.date === today)
-        .reduce((total, entry) => {
-            recalcEntry(entry);
-            return total + entry.durationMinutesRounded;
-        }, 0);
+        .reduce((total, entry) => total + countedMinutes(entry), 0);
 
     activeStatus.textContent = `${formatMinutes(todayEntriesTotal)} worked`;
     todayTotal.textContent = `${formatMinutes(todayEntriesTotal)} today`;
+}
+
+function countedMinutes(entry) {
+    recalcEntry(entry);
+    return entry.contract === "None" ? 0 : entry.durationMinutesRounded;
 }
 
 function renderRecentEntries() {
@@ -1397,7 +1433,7 @@ function renderRecentEntries() {
         if (entry.date !== currentDate) {
             currentDate = entry.date;
             const dayEntries = entries.filter((item) => item.date === currentDate);
-            const dayTotal = dayEntries.reduce((total, item) => total + item.durationMinutesRounded, 0);
+            const dayTotal = dayEntries.reduce((total, item) => total + countedMinutes(item), 0);
             const divider = document.createElement("tr");
             divider.className = "day-divider";
             divider.innerHTML = `<th colspan="7"><span>${formatDayHeading(parseDateOnlyInput(currentDate))}</span><strong class="mono">${formatMinutes(dayTotal)}</strong></th>`;
@@ -1408,8 +1444,8 @@ function renderRecentEntries() {
         row.innerHTML = `
       <td><input class="cell-input mono cell-time" data-field="start" type="time" step="900" value="${toTimeValue(new Date(entry.startRaw))}" aria-label="Start time" /></td>
       <td><input class="cell-input mono cell-time" data-field="end" type="time" step="900" value="${entry.endRaw ? toTimeValue(new Date(entry.endRaw)) : ""}" aria-label="End time" /></td>
-      <td><select class="cell-input" data-field="contract" aria-label="Contract">${optionsHtml(state.settings.contracts.map((item) => item.name), entry.contract)}</select></td>
-      <td><select class="cell-input" data-field="project" aria-label="Project">${optionsHtml((getContract(entry.contract)?.projects || ["None"]), entry.project)}</select></td>
+      <td><select class="cell-input ${entry.contract === "None" ? "is-none" : "contract-colored"}" style="--contract-hue:${getContractHue(entry.contract)}" data-field="contract" aria-label="Contract">${optionsHtml(state.settings.contracts.map((item) => item.name), entry.contract)}</select></td>
+      <td><select class="cell-input ${entry.project === "None" ? "is-none" : "contract-colored"}" style="--contract-hue:${getContractHue(entry.contract)}" data-field="project" aria-label="Project">${optionsHtml((getContract(entry.contract)?.projects || ["None"]), entry.project)}</select></td>
       <td class="mono duration-cell">${formatMinutes(entry.durationMinutesRounded)}</td>
       <td><input class="cell-input cell-note" data-field="note" value="${escapeHtml(entry.note || "")}" aria-label="Task note" maxlength="120" /></td>
       <td>
@@ -1570,7 +1606,10 @@ function renderDashboardRows(title, rows, emptyMessage, limit) {
 
     const content = rows
         .slice(0, limit)
-        .map(([name, minutes]) => `<li class="stat-row"><span>${escapeHtml(name)}</span><strong class="mono">${formatMinutes(minutes)}</strong></li>`)
+        .map(([name, minutes]) => {
+            const contractName = title === "Time by Project" ? name.slice(name.lastIndexOf(" (") + 2, -1) : name;
+            return `<li class="stat-row"><span class="contract-colored" style="--contract-hue:${getContractHue(contractName)}">${escapeHtml(name)}</span><strong class="mono">${formatMinutes(minutes)}</strong></li>`;
+        })
         .join("");
 
     return `<li class="stats-heading">${escapeHtml(title)}</li>${content}`;
@@ -1631,7 +1670,7 @@ function renderWeeklyContractChart(entries, weekStart) {
 
     const legendHtml = contractNames.length
         ? `<div class="week-legend">${contractNames
-            .map((name, index) => `<span class="legend-item"><span class="legend-swatch" style="background:${getContractColor(index)}"></span>${escapeHtml(name)}</span>`)
+            .map((name) => `<span class="legend-item"><span class="legend-swatch" style="background:${getContractColor(name)}"></span>${escapeHtml(name)}</span>`)
             .join("")}</div>`
         : "";
 
@@ -1642,13 +1681,13 @@ function renderWeeklyContractChart(entries, weekStart) {
     const barsHtml = days
         .map((day) => {
             const segments = contractNames
-                .map((contractName, index) => {
+                .map((contractName) => {
                     const minutes = day.totals.get(contractName) || 0;
                     if (!minutes) {
                         return "";
                     }
                     const pct = (minutes / chartCeiling) * 100;
-                    return `<div class="week-segment" style="height:${pct.toFixed(2)}%;background:${getContractColor(index)}" title="${escapeHtml(contractName)}: ${formatMinutes(minutes)}"></div>`;
+                    return `<div class="week-segment" style="height:${pct.toFixed(2)}%;background:${getContractColor(contractName)}" title="${escapeHtml(contractName)}: ${formatMinutes(minutes)}"></div>`;
                 })
                 .join("");
 
@@ -1676,8 +1715,8 @@ function renderWeeklyContractChart(entries, weekStart) {
     `;
 }
 
-function getContractColor(index) {
-    return contractColorPalette[index % contractColorPalette.length];
+function getContractColor(name) {
+    return `hsl(${getContractHue(name)} 32% 57%)`;
 }
 
 function roundUpTo(value, step) {
@@ -1896,9 +1935,11 @@ function renderContractsAndProjects() {
     state.settings.contracts.forEach((contract) => {
         const li = document.createElement("li");
         if (contract.name === "None") {
+            li.className = "is-none";
             li.textContent = "None (system)";
         } else {
             li.innerHTML = `${escapeHtml(contract.name)} <button class="ghost" data-remove-contract="${escapeHtml(contract.name)}">Remove</button>`;
+            colorizeContract(li, contract.name);
         }
         contractList.appendChild(li);
     });
@@ -1920,9 +1961,11 @@ function renderProjectList() {
     contract.projects.forEach((project) => {
         const li = document.createElement("li");
         if (contract.name === "None" || project === "None") {
+            li.className = "is-none";
             li.textContent = `${project} (system)`;
         } else {
             li.innerHTML = `${escapeHtml(project)} <button class="ghost" data-remove-project="${escapeHtml(project)}">Remove</button>`;
+            colorizeContract(li, project, contract.name);
         }
         projectList.appendChild(li);
     });
@@ -2119,7 +2162,7 @@ function formatDayHeading(date) {
 }
 
 function optionsHtml(values, selected) {
-    return values.map((value) => `<option value="${escapeHtml(value)}"${value === selected ? " selected" : ""}>${escapeHtml(value)}</option>`).join("");
+    return values.map((value) => `<option value="${escapeHtml(value)}"${value === selected ? " selected" : ""}${value === "None" ? ' class="is-none"' : ""}>${escapeHtml(value)}</option>`).join("");
 }
 
 function toLocalDateTimeValue(date) {
