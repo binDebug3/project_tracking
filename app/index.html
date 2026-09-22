@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hours Pilot</title>
+    <title>Time Sheet</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -16,7 +16,7 @@
 <body>
     <div id="app" class="app" data-theme="dark">
         <aside class="sidebar">
-            <div class="brand"><span class="brand-mark">HP</span><span>Hours Pilot</span></div>
+            <div class="brand"><span class="brand-mark">TS</span><span>Time Sheet</span></div>
             <nav class="nav" aria-label="Main navigation">
                 <button class="nav-btn active" data-page="tracking"><span class="nav-key">T</span>Time</button>
                 <button class="nav-btn" data-page="dashboard"><span class="nav-key">D</span>Reports</button>
@@ -219,6 +219,9 @@
                     <label>Project (optional)
                         <select id="notes-project-select"></select>
                     </label>
+                    <label>Search notes
+                        <input id="notes-search" type="search" placeholder="Find exact text…" aria-label="Search notes by text" />
+                    </label>
                 </div>
                 <div class="card">
                     <div class="section-title-row">
@@ -242,19 +245,11 @@
         </div>
     </dialog>
 
-    <dialog id="palette-dialog">
-        <div class="dialog-form">
-            <h3>Command Palette</h3>
-            <input id="palette-search" placeholder="Type a command" />
-            <ul id="palette-list" class="list"></ul>
-        </div>
-    </dialog>
-
     <dialog id="shortcuts-dialog">
         <div class="dialog-form">
             <h3>Shortcuts</h3>
             <ul class="list">
-                <li>Ctrl+K : Open command palette</li>
+                <li>Ctrl+T : Next app tab</li>
                 <li>G then T/D/J/N/S : Go to page</li>
                 <li>Enter in task : Save entry</li>
                 <li>Enter or Tab : Move through entry fields</li>

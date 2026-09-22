@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Safari-friendly local server for Hours Pilot CSV persistence."""
+"""Safari-friendly local server for Time Sheet CSV persistence."""
 from __future__ import annotations
 
 import argparse
@@ -106,14 +106,14 @@ class HoursPilotHandler(SimpleHTTPRequestHandler):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run Hours Pilot with a persistent local CSV backend.")
+    parser = argparse.ArgumentParser(description="Run Time Sheet with a persistent local CSV backend.")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--csv", help="CSV path to use now and remember for future launches")
     args = parser.parse_args()
     if args.csv:
         save_config(csv_path(args.csv))
     server = ThreadingHTTPServer(("127.0.0.1", args.port), HoursPilotHandler)
-    print(f"Hours Pilot is running at http://127.0.0.1:{args.port}/app/")
+    print(f"Time Sheet is running at http://127.0.0.1:{args.port}/app/")
     print(f"CSV: {current_csv_path()}")
     server.serve_forever()
 

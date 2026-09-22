@@ -112,6 +112,7 @@ const csvStatus = document.getElementById("csv-status");
 
 const notesContractSelect = document.getElementById("notes-contract-select");
 const notesProjectSelect = document.getElementById("notes-project-select");
+const notesSearch = document.getElementById("notes-search");
 const notesResults = document.getElementById("notes-results");
 
 const reminderDialog = document.getElementById("reminder-dialog");
@@ -119,24 +120,9 @@ const reminderOpen = document.getElementById("reminder-open");
 const reminderSnooze = document.getElementById("reminder-snooze");
 const reminderDismiss = document.getElementById("reminder-dismiss");
 
-const paletteDialog = document.getElementById("palette-dialog");
-const paletteSearch = document.getElementById("palette-search");
-const paletteList = document.getElementById("palette-list");
-
 const shortcutsDialog = document.getElementById("shortcuts-dialog");
 const openShortcuts = document.getElementById("open-shortcuts");
 const closeShortcuts = document.getElementById("close-shortcuts");
-
-const commands = [
-    { key: "go-tracking", label: "Go: Time Tracking", run: () => showPage("tracking") },
-    { key: "go-dashboard", label: "Go: Dashboard", run: () => showPage("dashboard") },
-    { key: "go-projects", label: "Go: Project Tracker", run: () => showPage("projects") },
-    { key: "go-settings", label: "Go: Settings", run: () => showPage("settings") },
-    { key: "go-notes", label: "Go: Notes", run: () => showPage("notes") },
-    { key: "new-entry", label: "New time entry", run: focusEntryHour },
-    { key: "save-journal", label: "Save Journal", run: saveJournal },
-    { key: "undo", label: "Undo Last Edit", run: undoLast }
-];
 
 init().catch(() => {
     csvStatus.textContent = "CSV backend initialization failed. Using local storage only.";
@@ -281,6 +267,7 @@ function bindEvents() {
         colorizeContract(notesProjectSelect, notesProjectSelect.value, notesContractSelect.value);
         renderNotesPage();
     });
+    notesSearch.addEventListener("input", renderNotesPage);
 
     reminderOpen.addEventListener("click", () => {
         reminderDialog.close();
@@ -297,20 +284,6 @@ function bindEvents() {
     openShortcuts.addEventListener("click", () => shortcutsDialog.showModal());
     closeShortcuts.addEventListener("click", () => shortcutsDialog.close());
 
-    paletteSearch.addEventListener("input", () => renderPalette());
-
-    paletteList.addEventListener("click", (event) => {
-        const button = event.target.closest("button[data-cmd]");
-        if (!button) {
-            return;
-        }
-        const cmd = commands.find((c) => c.key === button.dataset.cmd);
-        if (cmd) {
-            cmd.run();
-            paletteDialog.close();
-        }
-    });
-
     document.addEventListener("keydown", handleKeyboardShortcuts);
 }
 
@@ -321,6 +294,14 @@ function handleKeyboardShortcuts(event) {
     if (event.ctrlKey && event.key === "Tab") {
         event.preventDefault();
         cyclePage(event.shiftKey ? -1 : 1);
+        return;
+    }
+
+    if (event.ctrlKey && key === "t" && !event.altKey && !event.metaKey &&
+        !event.repeat && document.visibilityState === "visible" && document.hasFocus() &&
+        !document.querySelector("dialog[open]")) {
+        event.preventDefault();
+        cyclePage(1);
         return;
     }
 
@@ -337,12 +318,6 @@ function handleKeyboardShortcuts(event) {
             focusFirstElementInActivePage();
             return;
         }
-    }
-
-    if (event.ctrlKey && key === "k") {
-        event.preventDefault();
-        openPalette();
-        return;
     }
 
     if (key === "?" && !event.ctrlKey) {
@@ -422,7 +397,7 @@ function cyclePage(direction) {
     const index = cyclePages.indexOf(current);
     const normalized = index < 0 ? 0 : index;
     const next = (normalized + direction + cyclePages.length) % cyclePages.length;
-    showPage(cyclePages[next]);
+    showPage(cyclePages[next], true);
 }
 
 function focusFirstElementInActivePage() {
@@ -449,7 +424,7 @@ function isTypingTarget(target) {
     return ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) || target.isContentEditable;
 }
 
-function showPage(pageName) {
+function showPage(pageName, keepNavFocus = false) {
     applyTodayDefaults();
 
     Object.entries(pages).forEach(([name, page]) => {
@@ -473,6 +448,11 @@ function showPage(pageName) {
 
     if (pageName === "tracking") {
         setEntryDefaults();
+    }
+
+    if (keepNavFocus) {
+        navButtons.find((button) => button.dataset.page === pageName)?.focus();
+    } else if (pageName === "tracking") {
         requestAnimationFrame(focusEntryHour);
     } else {
         focusFirstElementInActivePage();
@@ -718,7 +698,7 @@ async function setupCsvBackend() {
     if (await setupLocalCsvServer()) return;
 
     if (!("showOpenFilePicker" in window)) {
-        csvStatus.textContent = "Start Hours Pilot local server to use a persistent CSV in Safari.";
+        csvStatus.textContent = "Start the Time Sheet local server to use a persistent CSV in Safari.";
         return;
     }
 
@@ -781,7 +761,7 @@ async function connectCsvFile() {
     }
 
     if (!("showOpenFilePicker" in window)) {
-        csvStatus.textContent = "Start Hours Pilot local server to use a persistent CSV in Safari.";
+        csvStatus.textContent = "Start the Time Sheet local server to use a persistent CSV in Safari.";
         return;
     }
 
@@ -1132,6 +1112,7 @@ function updateNotesProjectSelect() {
 function renderNotesPage() {
     const contractFilter = notesContractSelect.value;
     const projectFilter = notesProjectSelect.value;
+    const searchText = notesSearch.value.trim().toLocaleLowerCase();
 
     const filtered = Object.entries(state.journals)
         .map(([date, journal]) => ({
@@ -1151,15 +1132,17 @@ function renderNotesPage() {
             if (projectFilter !== "All" && journal.project !== projectFilter) {
                 return false;
             }
-            return true;
+            if (!searchText) return true;
+            return [journal.date, journal.contract, journal.project, journal.did, journal.learned, journal.next]
+                .some((value) => value.toLocaleLowerCase().includes(searchText));
         })
-        .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        .sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
 
     notesResults.innerHTML = "";
     if (!filtered.length) {
         const li = document.createElement("li");
         li.className = "muted";
-        li.textContent = "No notes for this selection.";
+        li.textContent = searchText ? "No notes match that text." : "No notes for this selection.";
         notesResults.appendChild(li);
         return;
     }
@@ -1442,8 +1425,8 @@ function renderRecentEntries() {
         const row = document.createElement("tr");
         row.dataset.entryId = entry.id;
         row.innerHTML = `
-      <td><input class="cell-input mono cell-time" data-field="start" type="time" step="900" value="${toTimeValue(new Date(entry.startRaw))}" aria-label="Start time" /></td>
-      <td><input class="cell-input mono cell-time" data-field="end" type="time" step="900" value="${entry.endRaw ? toTimeValue(new Date(entry.endRaw)) : ""}" aria-label="End time" /></td>
+      <td><div class="time-cell"><span class="time-display mono" aria-hidden="true">${formatCompactTime(new Date(entry.startRaw))}</span><input class="cell-input mono cell-time" data-field="start" type="time" step="900" value="${toTimeValue(new Date(entry.startRaw))}" aria-label="Start time" /></div></td>
+      <td><div class="time-cell"><span class="time-display mono" aria-hidden="true">${entry.endRaw ? formatCompactTime(new Date(entry.endRaw)) : "—"}</span><input class="cell-input mono cell-time" data-field="end" type="time" step="900" value="${entry.endRaw ? toTimeValue(new Date(entry.endRaw)) : ""}" aria-label="End time" /></div></td>
       <td><select class="cell-input ${entry.contract === "None" ? "is-none" : "contract-colored"}" style="--contract-hue:${getContractHue(entry.contract)}" data-field="contract" aria-label="Contract">${optionsHtml(state.settings.contracts.map((item) => item.name), entry.contract)}</select></td>
       <td><select class="cell-input ${entry.project === "None" ? "is-none" : "contract-colored"}" style="--contract-hue:${getContractHue(entry.contract)}" data-field="project" aria-label="Project">${optionsHtml((getContract(entry.contract)?.projects || ["None"]), entry.project)}</select></td>
       <td class="mono duration-cell">${formatMinutes(entry.durationMinutesRounded)}</td>
@@ -1861,7 +1844,7 @@ function renderJournalSection(title, content) {
     const body = escapeHtml(content).replaceAll("\n", "<br>");
     return `
         <div class="note-section">
-            <strong>${escapeHtml(title)}</strong>
+            <strong class="note-section-title">${escapeHtml(title)}</strong>
             <div class="note-section-body">${body}</div>
         </div>
     `;
@@ -2040,25 +2023,6 @@ function startClock() {
     setInterval(tick, 30000);
 }
 
-function openPalette() {
-    paletteSearch.value = "";
-    renderPalette();
-    paletteDialog.showModal();
-    paletteSearch.focus();
-}
-
-function renderPalette() {
-    const query = paletteSearch.value.trim().toLowerCase();
-    const filtered = commands.filter((command) => command.label.toLowerCase().includes(query));
-
-    paletteList.innerHTML = "";
-    filtered.forEach((command) => {
-        const li = document.createElement("li");
-        li.innerHTML = `<button class="ghost" data-cmd="${command.key}">${command.label}</button>`;
-        paletteList.appendChild(li);
-    });
-}
-
 function setupJournalBulletEditing() {
     [journalDid, journalLearned, journalNext].forEach((field) => {
         field.addEventListener("keydown", (event) => {
@@ -2155,6 +2119,10 @@ function formatTime(date) {
 
 function toTimeValue(date) {
     return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function formatCompactTime(date) {
+    return `${date.getHours() % 12 || 12}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
 function formatDayHeading(date) {

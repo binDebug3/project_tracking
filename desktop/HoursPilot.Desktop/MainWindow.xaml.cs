@@ -41,7 +41,7 @@ public partial class MainWindow : Window
                 DesktopLogger.Log($"App index file missing: {appIndexPath}");
                 MessageBox.Show(
                     $"Could not find app files at:{Environment.NewLine}{appIndexPath}",
-                    "Hours Pilot",
+                    "Time Sheet",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error
                 );
@@ -54,7 +54,7 @@ public partial class MainWindow : Window
             if (Browser.CoreWebView2 is null)
             {
                 DesktopLogger.Log("WebView2 CoreWebView2 is null after EnsureCoreWebView2Async.");
-                MessageBox.Show("WebView2 failed to initialize. Please verify the WebView2 runtime is installed and try again.", "Hours Pilot", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("WebView2 failed to initialize. Please verify the WebView2 runtime is installed and try again.", "Time Sheet", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
@@ -76,8 +76,8 @@ public partial class MainWindow : Window
         {
             DesktopLogger.LogException("MainWindowLoaded startup failed", ex);
             MessageBox.Show(
-                $"Hours Pilot failed to start.{Environment.NewLine}{Environment.NewLine}{ex.GetType().Name}:{Environment.NewLine}{ex.Message}",
-                "Hours Pilot",
+                $"Time Sheet failed to start.{Environment.NewLine}{Environment.NewLine}{ex.GetType().Name}:{Environment.NewLine}{ex.Message}",
+                "Time Sheet",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error
             );

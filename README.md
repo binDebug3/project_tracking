@@ -6,7 +6,7 @@ An app to easily track my hours, projects, and progress.
 This repository now includes a no-build web MVP in [app/index.html](app/index.html) with:
 
 - Five pages: Time Tracking, Dashboard, Project Tracker, Settings, Notes
-- Keyboard-first navigation and command palette
+- Keyboard-first navigation, including a single-key app-tab shortcut
 - Compact boundary entry for date, quarter-hour start time, contract, project, and task
 - Context-aware AM/PM inference with an explicit override
 - Contract/project selection with reserved None contract and project
@@ -14,7 +14,7 @@ This repository now includes a no-build web MVP in [app/index.html](app/index.ht
 - Multi-day, sticky-grouped history with spreadsheet-style inline editing and deletion
 - Autosaving daily project journal with quick day navigation and section cycling
 - Dashboard range filters, time-by-contract visualization, and wage/tax earnings estimates
-- Notes browser filtered by contract and optional project
+- Notes browser filtered by contract, optional project, and literal text search
 - CSV-backed time-entry persistence with automatic sync after connecting a file
 - Windows desktop host via WPF + WebView2
 
@@ -59,8 +59,8 @@ The Windows WebView2 host and Chromium File System Access API paths remain suppo
 
 ## Keyboard Shortcuts
 
-- `Ctrl+K` open command palette
-- `Ctrl+Tab` cycle through Time Tracking, Dashboard, Project Tracker, Settings, and Notes
+- `Ctrl+T` cycle to the next app tab while the browser tab is active
+- `Ctrl+Tab` cycle through Time Tracking, Dashboard, Project Tracker, Notes, and Settings
 - `Ctrl+Shift+Tab` cycle backward through pages
 - `G` then `T`/`D`/`J`/`S`/`N` go to Time/Reports/Journal/Settings/Notes
 - `Ctrl+N` focus a new time entry
